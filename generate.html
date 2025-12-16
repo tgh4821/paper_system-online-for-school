@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海大小报 - 导出</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        /* --- 基础环境 --- */
+        body { background-color: #f0f2f5; height: 100vh; overflow: hidden; font-family: "Microsoft YaHei", sans-serif; }
+        .control-panel { background: white; border-right: 1px solid #ddd; height: 100%; overflow-y: auto; padding: 20px; z-index: 10; position: relative;}
+        .preview-area { background: #525659; height: 100%; overflow-y: auto; display: flex; justify-content: center; padding: 40px; }
+        
+        /* --- 纸张容器 --- */
+        #pdf-content {
+            background: white; 
+            width: 210mm; 
+            min-height: auto; 
+            height: fit-content; 
+            padding: 15mm 12mm; 
+            padding-bottom: 20mm; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            font-family: "Georgia", "SimSun", "Songti SC", serif; 
+            color: #111; 
+            position: relative; 
+            overflow: hidden; 
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        /* --- 报头样式 --- */
+        .paper-header { 
+            text-align: center; 
+            border-bottom: 3px double #333; 
+            padding-bottom: 15px; 
+            margin-bottom: 25px; 
+        }
+        .paper-title { 
+            font-size: 48px; 
+            font-weight: 900; 
+            margin-bottom: 5px; 
+            letter-spacing: 10px; 
+            font-family: "SimHei", sans-serif; 
+            color: #000;
+        }
+        .paper-meta { 
+            display: flex; justify-content: space-between; 
+            font-size: 16px; font-weight: bold; 
+            border-top: 1px solid #000; padding-top: 10px; margin-top: 10px;
+        }
+
+        /* --- 物理双栏布局 --- */
+        .paper-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10mm; /* 栏间距 */
+        }
+        .paper-col {
+            width: 48%; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- 内容块样式 --- */
+        .content-block {
+            margin-bottom: 0;
+            width: 100%;
+            break-inside: avoid;
+            /* 确保计算高度时包含margin */
+            padding-bottom: 1px; 
+        }
+
+        /* --- 排版组件 --- */
+        h3.section-title { 
+            font-size: 22px; 
+            font-weight: 900; 
+            border-bottom: 2px solid #555; 
+            padding-bottom: 6px; 
+            margin-top: 30px; 
+            margin-bottom: 15px; 
+            color: #222;
+            font-family: "SimHei", sans-serif;
+        }
+        /* 动态移除各栏首元素的上边距 */
+        .paper-col > .content-block:first-child h3.section-title { margin-top: 0 !important; }
+
+        p { 
+            font-size: 15px; 
+            line-height: 1.7; 
+            margin-bottom: 15px; 
+            text-align: justify;
+        }
+
+        .paper-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 15px; table-layout: fixed; }
+        .paper-table th, .paper-table td { border: 1px solid #444; padding: 6px 4px; text-align: center; word-break: break-all; }
+        .paper-table th { background-color: #f2f2f2; font-weight: bold; color: #333; }
+        .paper-table td.col-title { text-align: left; font-weight: bold; color: #000; width: 60%; }
+        .paper-table td.col-date { width: 20%; color: #555; font-family: sans-serif; font-size: 12px;}
+        
+        .paper-link { 
+            color: #0d6efd; text-decoration: none; 
+            border-bottom: 1px solid rgba(13, 110, 253, 0.4); 
+            cursor: pointer; font-weight: 600;
+        }
+
+        /* --- 重点消息块 --- */
+        .highlight-box {
+            border: 2px solid #eee;
+            padding: 12px;
+            margin-bottom: 15px; 
+            background: #fdfdfd;
+            border-radius: 4px;
+        }
+        .detail-block { display: flex; align-items: start; }
+        .detail-text { flex: 1; padding-right: 10px; }
+        .detail-desc { font-size: 14px; color: #555; margin-bottom: 8px; line-height: 1.5; }
+        .detail-qr { width: 75px; height: 75px; padding: 3px; border: 1px solid #ccc; background: white; flex-shrink: 0;}
+
+        .text-olive { color: #808000 !important; font-weight: 800; }
+        .urgent-row td { color: #c0392b !important; font-weight: bold; background-color: #fff0f0; }
+        .urgent-row .paper-link { color: #c0392b !important; border-color: #c0392b; }
+
+        .special-item { margin-bottom: 12px; }
+        .special-item-title { font-weight: bold; font-size: 16px; margin-bottom: 4px; color: #000; }
+        .special-section-content { font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap;}
+        
+        .empty-placeholder { 
+            font-size: 13px; font-style: italic; padding: 12px 0; margin-top: 15px; 
+            border-top: 1px dashed #ccc; color: #808000; font-weight: bold;
+        }
+
+        /* 计算容器：必须不可见但占据真实空间 */
+        #calculation-container {
+            position: absolute;
+            top: 0; left: 0;
+            /* 关键：必须与真实的 paper-col 宽度一致，否则换行高度计算不准 */
+            visibility: hidden;
+            z-index: -100;
+            background: pink; /* 调试用 */
+        }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="container-fluid h-100 p-0">
+    <div class="row h-100 g-0">
+        <div class="col-md-3 control-panel">
+            <h4 class="mb-3"><i class="bi bi-newspaper"></i> 小报生成器</h4>
+            <div class="mb-4">
+                <label class="form-label fw-bold">刊载日期</label>
+                <input type="date" class="form-control" id="fetchDate">
+            </div>
+            
+            <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
+                <h6 class="fw-bold text-success"><i class="bi bi-cpu"></i> 核心算法更新：</h6>
+                <p class="small text-secondary mb-0">
+                    已启用<strong>全局最优分割 (Global Best Split)</strong> 算法。系统会模拟计算所有可能的切分点，找到让左右两栏底部最齐平的方案。不再出现“左短右长”或“底部大块留白”的现象。
+                </p>
+            </div>
+
+            <div class="d-grid gap-3 mb-4">
+                <button class="btn btn-primary py-2" onclick="fetchData()"><i class="bi bi-cloud-download"></i> 1. 获取并计算平衡</button>
+                <button class="btn btn-success btn-lg py-2" onclick="exportSmartPDF()"><i class="bi bi-box-seam"></i> 2. 一键导出</button>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">包含条目：</label>
+                <ul class="list-group list-group-flush small" id="itemList" style="max-height: 200px; overflow-y: auto;"></ul>
+            </div>
+            <hr>
+            <a href="admin.html" class="btn btn-outline-secondary w-100">返回管理后台</a>
+        </div>
+
+        <div class="col-md-9 preview-area">
+            <div id="pdf-content">
+                <div class="paper-header">
+                    <div class="paper-title">嗨！大消息</div>
+                    <div class="paper-meta">
+                        <span id="headerDate">--</span>
+                        <span>海纳百川，取则行远</span>
+                        <span>青岛市</span>
+                    </div>
+                </div>
+
+                <div class="paper-body">
+                    <div class="paper-col" id="col-left"></div>
+                    <div class="paper-col" id="col-right"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="calculation-container"></div>
+
+<script src="config.js"></script> 
+<script>
+    const currentUser = localStorage.getItem('haidaUser');
+    if (typeof ADMIN_LIST !== 'undefined' && (!currentUser || !ADMIN_LIST.includes(currentUser))) { 
+        alert("无权访问"); window.location.href = 'index.html'; 
+    }
+
+    window.onload = function() {
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const lastDate = localStorage.getItem('haida_last_publish_date');
+        document.getElementById('fetchDate').value = lastDate || todayStr;
+    };
+
+    function formatTitleHtml(msg) {
+        let finalTitle = msg.title;
+
+        // 如果是院级活动且有学院名，加前缀
+        if (msg.tag === '院级活动' && msg.collegeName) {
+            finalTitle = `【${msg.collegeName}】${msg.title}`;
+        }
+
+        if (msg.type === 'url' && msg.sourceUrl) {
+            return `<a href="${msg.sourceUrl}" target="_blank" class="paper-link" data-pdf-link="${msg.sourceUrl}">${finalTitle}</a>`;
+        }
+        return finalTitle;
+    }
+
+    function createBlock(htmlContent) {
+        const div = document.createElement('div');
+        div.className = 'content-block';
+        div.innerHTML = htmlContent;
+        return div;
+    }
+
+    async function fetchData() {
+        const targetDate = document.getElementById('fetchDate').value;
+        document.getElementById('headerDate').textContent = targetDate;
+        
+        let allMessages = [];
+        try {
+            const response = await fetch('/api/get_messages');
+            allMessages = await response.json();
+        } catch(e) {
+            console.warn("API连接失败");
+            allMessages = []; 
+        }
+
+        const listContainer = document.getElementById('itemList');
+        listContainer.innerHTML = '';
+        const filtered = allMessages.filter(m => {
+            if (m.status !== '已发布') return false;
+            if (m.deadline && targetDate >= m.deadline) return false; 
+            return true;
+        });
+        filtered.forEach(m => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.textContent = `[${m.tag}] ${m.title}`;
+            listContainer.appendChild(li);
+        });
+
+        renderBalancedView(filtered, targetDate);
+    }
+
+    function renderBalancedView(messages, currentPdfDate) {
+        const queue = [];
+
+        // 1. 订阅块
+        const subHtml = `
+            <h3 class="section-title">1. 订阅与加入</h3>
+            <p>
+                编辑部工作轻松，用爱发电，更有激励奖励。欢迎加入我们！详情联系 QQ 3628491152 (小风同学) 或 alice_liddell1852@126.com。<br>
+                <span class="text-olive">投稿(来信/趣闻)请发邮箱:</span> alice_liddell1852@126.com<br>
+                <span class="text-olive">免费订阅/获取PDF(含往期):</span> 加 QQ 群 698517032。
+            </p>`;
+        queue.push(createBlock(subHtml));
+
+        // 准备数据分类
+        let activityList = []; 
+        let activityHigh = []; 
+        let clubList = [], clubHigh = [];
+        let specialData = { editor: [], letters: [], tips: [] };
+
+        messages.forEach(msg => {
+            if (msg.tag === '编者的话') { specialData.editor.push(msg); return; }
+            if (msg.tag === '读者来信') { specialData.letters.push(msg); return; }
+            if (msg.tag === '技巧趣闻') { specialData.tips.push(msg); return; }
+
+            const isNew = (msg.publishDate === currentPdfDate);
+            const isSticky = (msg.keepUntilDeadline === true);
+            const showHighlight = (msg.type === 'url' && (isNew || isSticky));
+
+            // 合并校级、院级、讲座
+            if (msg.tag === '校级活动' || msg.tag === '院级活动' || msg.tag === '讲座') {
+                activityList.push(msg);
+                if (showHighlight) activityHigh.push(msg);
+            } 
+            else if (msg.tag === '社团活动') {
+                clubList.push(msg);
+                if (showHighlight) clubHigh.push(msg);
+            }
+        });
+
+        // 辅助生成表格函数
+        const generateTableHtml = (title, list) => {
+            if (list.length === 0) return '';
+            let rows = '';
+            list.forEach(msg => {
+                let deadlineStr = "-";
+                let isUrgent = false;
+                if (msg.deadline) {
+                    const parts = msg.deadline.split('-');
+                    deadlineStr = `${parts[1]}.${parts[2]}`;
+                    if (currentPdfDate) {
+                        const diff = new Date(msg.deadline) - new Date(currentPdfDate);
+                        const days = Math.ceil(diff / (1000 * 3600 * 24));
+                        if (days <= 2 && days >= 0) isUrgent = true;
+                    }
+                }
+                let publishStr = "";
+                if (msg.publishDate) {
+                    const p = msg.publishDate.split('-');
+                    publishStr = `${p[1]}.${p[2]}`;
+                }
+                const trClass = isUrgent ? 'urgent-row' : '';
+                rows += `<tr class="${trClass}">
+                    <td class="col-title">${formatTitleHtml(msg)}</td>
+                    <td class="col-date">${deadlineStr}</td>
+                    <td class="col-date">${publishStr}</td>
+                </tr>`;
+            });
+            return `
+                <h3 class="section-title">${title}</h3>
+                <table class="paper-table">
+                    <thead><tr><th style="width:58%">活动</th><th style="width:22%">截止</th><th style="width:20%">刊载</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        };
+
+        const createHighlightBlocks = (list, startIndex) => {
+            let blocks = [];
+            list.forEach((msg, i) => {
+                const index = startIndex + i;
+                const qrId = `qrcode-${msg.id}`;
+                const div = document.createElement('div');
+                div.className = 'content-block highlight-box'; 
+                div.innerHTML = `
+                    <h3 class="section-title mt-0 text-primary" style="font-size:16px;">
+                        🔥 今日上传 ${index}. ${formatTitleHtml(msg)}
+                    </h3>
+                    <div class="detail-block">
+                        <div class="detail-text">
+                            <div class="detail-desc">${msg.desc || '暂无简介，请扫描二维码或点击链接查看详情。'}</div>
+                            <div style="font-size:12px;">
+                                <a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none" style="color:#d63384;" data-pdf-link="${msg.sourceUrl}">🔗 点击跳转原文</a>
+                            </div>
+                        </div>
+                        <div class="detail-qr" id="${qrId}" data-pdf-link="${msg.sourceUrl}" style="cursor:pointer"></div>
+                    </div>
+                `;
+                div.setAttribute('data-qr-text', msg.sourceUrl);
+                div.setAttribute('data-qr-id', qrId);
+                blocks.push(div);
+            });
+            return blocks;
+        };
+
+        // --- 开始构建队列 ---
+
+        // 1. 技巧趣闻 (第2位)
+        let tipsHtml = `<h3 class="section-title">2. 技巧趣闻</h3>`;
+        if (specialData.tips.length > 0) {
+            specialData.tips.forEach(msg => {
+                tipsHtml += `<div class="special-item">
+                    <div class="special-item-title">${formatTitleHtml(msg)}</div>
+                    <div class="special-section-content">${msg.desc}</div>
+                </div>`;
+            });
+        }
+        tipsHtml += `<div class="empty-placeholder text-olive">分享生活技巧或校园趣闻，请投递至 alice_liddell1852@126.com</div>`;
+        queue.push(createBlock(tipsHtml));
+
+        // 2. 活动清单 (序号 3)
+        if (activityList.length > 0) queue.push(createBlock(generateTableHtml("3. 活动清单", activityList)));
+        if (activityHigh.length > 0) queue.push(...createHighlightBlocks(activityHigh, 1));
+
+        // 3. 社团活动 (序号 4) - 核心修改部分
+        let clubHtml = '';
+        const clubPlaceholder = `<div class="empty-placeholder text-olive">期待更多社团合作，投稿请至 alice_liddell1852@126.com</div>`;
+        
+        if (clubList.length > 0) {
+            clubHtml = generateTableHtml("4. 社团活动", clubList);
+        } else {
+            clubHtml = `<h3 class="section-title">4. 社团活动</h3>`;
+        }
+
+        // 如果没有高亮内容插在中间，我们将占位符与标题/表格合并在同一个块中
+        // 这样可以避免标题在左栏底部、占位符在右栏顶部的分离情况
+        if (clubHigh.length === 0) {
+            clubHtml += clubPlaceholder;
+            queue.push(createBlock(clubHtml));
+        } else {
+            // 如果有高亮内容，则必须拆分
+            queue.push(createBlock(clubHtml));
+            queue.push(...createHighlightBlocks(clubHigh, 1));
+            // 占位符单独放最后
+            queue.push(createBlock(clubPlaceholder));
+        }
+
+        // 4. 其他专栏 (序号 5, 6)
+        const remainingSections = [
+            { title: "5. 编者的话", data: specialData.editor, placeholder: "期待听到您的声音，投稿请至 alice_liddell1852@126.com" },
+            { title: "6. 读者来信", data: specialData.letters, placeholder: "虚位以待，您的观点值得被看见，来信请寄 alice_liddell1852@126.com" }
+        ];
+
+        remainingSections.forEach(sec => {
+            let html = `<h3 class="section-title">${sec.title}</h3>`;
+            if (sec.data.length > 0) {
+                sec.data.forEach(msg => {
+                    html += `<div class="special-item">
+                        <div class="special-item-title">${formatTitleHtml(msg)}</div>
+                        <div class="special-section-content">${msg.desc}</div>
+                    </div>`;
+                });
+            }
+            html += `<div class="empty-placeholder text-olive">${sec.placeholder}</div>`;
+            queue.push(createBlock(html));
+        });
+
+        // 调用算法
+        calculateBestSplit(queue);
+    }
+
+    function calculateBestSplit(queue) {
+        const leftCol = document.getElementById('col-left');
+        const rightCol = document.getElementById('col-right');
+        const calcContainer = document.getElementById('calculation-container');
+        
+        const colWidth = leftCol.getBoundingClientRect().width;
+        calcContainer.style.width = colWidth + 'px';
+
+        leftCol.innerHTML = ''; rightCol.innerHTML = ''; calcContainer.innerHTML = '';
+
+        queue.forEach(block => calcContainer.appendChild(block));
+
+        const heights = queue.map(block => block.getBoundingClientRect().height);
+        const totalHeight = heights.reduce((a, b) => a + b, 0);
+
+        console.log("Block Heights:", heights);
+        console.log("Total Height:", totalHeight);
+
+        let bestSplitIndex = 0; 
+        let minDiff = Infinity;
+
+        let currentLeftH = 0;
+        
+        for (let i = 0; i < heights.length; i++) {
+            currentLeftH += heights[i];
+            const currentRightH = totalHeight - currentLeftH;
+            const diff = Math.abs(currentLeftH - currentRightH);
+
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestSplitIndex = i; 
+            }
+        }
+        
+        console.log(`Best Split at index: ${bestSplitIndex}, Min Diff: ${minDiff}`);
+
+        queue.forEach((block, index) => {
+            if (index <= bestSplitIndex) {
+                leftCol.appendChild(block);
+            } else {
+                rightCol.appendChild(block);
+            }
+
+            if (block.getAttribute('data-qr-text')) {
+                const qrId = block.getAttribute('data-qr-id');
+                const text = block.getAttribute('data-qr-text');
+                const qrContainer = block.querySelector(`#${qrId}`);
+                if (qrContainer && qrContainer.innerHTML === '') {
+                    new QRCode(qrContainer, {
+                        text: text, width: 70, height: 70,
+                        colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
+                    });
+                }
+            }
+        });
+
+        calcContainer.innerHTML = '';
+    }
+
+    function getFileName() {
+        const dateVal = document.getElementById('fetchDate').value;
+        const parts = dateVal.split('-'); 
+        if (parts.length === 3) {
+            const shortYear = parts[0].slice(2);
+            return `海大小报（${shortYear}.${parts[1]}.${parts[2]}）`;
+        }
+        return `海大小报（${dateVal}）`;
+    }
+
+    async function exportSmartPDF() {
+        const btn = document.querySelector('.btn-success');
+        const originalText = btn.innerHTML;
+        const fileName = getFileName();
+
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 处理中...`;
+
+        try {
+            const originalElement = document.getElementById('pdf-content');
+            
+            const clone = originalElement.cloneNode(true);
+            const hiddenBox = document.createElement('div');
+            hiddenBox.style.position = 'absolute';
+            hiddenBox.style.top = '0';
+            hiddenBox.style.left = '-9999px';
+            hiddenBox.style.width = '210mm'; 
+            hiddenBox.appendChild(clone);
+            document.body.appendChild(hiddenBox);
+
+            await new Promise(r => setTimeout(r, 200));
+
+            const linkElements = clone.querySelectorAll('[data-pdf-link]');
+            const containerRect = clone.getBoundingClientRect();
+            const linksToInject = [];
+
+            linkElements.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    linksToInject.push({
+                        url: el.getAttribute('data-pdf-link'),
+                        x: rect.left - containerRect.left,
+                        y: rect.top - containerRect.top,
+                        w: rect.width,
+                        h: rect.height
+                    });
+                }
+            });
+
+            const canvas = await html2canvas(clone, { 
+                scale: 2, 
+                useCORS: true,
+                windowWidth: clone.scrollWidth,
+                windowHeight: clone.scrollHeight
+            });
+            document.body.removeChild(hiddenBox);
+
+            const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+            const imgLink = document.createElement('a');
+            imgLink.download = `${fileName}.png`;
+            imgLink.href = canvas.toDataURL("image/png"); 
+            imgLink.click();
+
+            await new Promise(r => setTimeout(r, 1000));
+
+            const contentWidthPx = canvas.width;
+            const contentHeightPx = canvas.height;
+            const pdfWidthMm = 210;
+            const pdfHeightMm = (contentHeightPx * pdfWidthMm) / contentWidthPx;
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', [pdfWidthMm, pdfHeightMm]);
+
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidthMm, pdfHeightMm);
+
+            const pxToMm = pdfWidthMm / containerRect.width;
+            linksToInject.forEach(link => {
+                pdf.link(link.x * pxToMm, link.y * pxToMm, link.w * pxToMm, link.h * pxToMm, { url: link.url });
+            });
+
+            pdf.save(`${fileName}.pdf`);
+            
+            btn.innerHTML = `<i class="bi bi-check-circle"></i> 完成！`;
+
+        } catch (e) {
+            console.error(e);
+            alert("导出出错：" + e.message);
+            btn.innerHTML = `<i class="bi bi-exclamation-triangle"></i> 失败`;
+        }
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>

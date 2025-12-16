@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>所有条目管理 - 管理员后台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #fff; padding: 20px; }
+        .container-fluid { max-width: 1400px; }
+        .table thead th { border-bottom: 2px solid #ddd; font-weight: 600; font-size: 14px; }
+        .table tbody td { vertical-align: middle; font-size: 14px; color: #333; }
+        .badge-publish { background-color: #198754; color: white; font-size: 0.8em; margin-right: 5px; }
+        .badge-sticky { background-color: #0d6efd; color: white; font-size: 0.8em; }
+        .text-expired { text-decoration: line-through; color: #999; }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid">
+        <div class="mb-4 d-flex justify-content-between align-items-center">
+            <div>
+                <h2>所有条目管理</h2>
+                <div class="text-muted">发布日期设定 (决定 PDF 属于哪一天)</div>
+            </div>
+            <a href="generate.html" class="btn btn-primary" target="_blank" title="在新窗口中打开报纸生成器">
+                <i class="bi bi-file-earmark-pdf"></i> 生成报纸 PDF
+            </a>
+            <div>
+                <button class="btn btn-secondary me-2" onclick="loadData()">🔄 刷新数据</button>
+                <a href="index.html" class="btn btn-outline-secondary">返回主页</a>
+            </div>
+        </div>
+
+        <div class="card p-3 mb-4 bg-light border-0">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">目标刊载日期</label>
+                    <input type="date" class="form-control" id="targetPublishDate">
+                </div>
+                <div class="col-md-9 pt-4">
+                    <button class="btn btn-outline-success me-2" onclick="publishTodayUploads()">一键发布今日上传</button>
+                    <button class="btn btn-success me-2" onclick="publishSelected('once')">发布选中条目 (仅限当天)</button>
+                    <button class="btn btn-primary me-2" onclick="publishSelected('sticky')">发布选中 (直到截止日期)</button>
+                    <button class="btn btn-warning ms-3 float-end" onclick="resetPublishStatus()">重置状态 (撤回)</button>
+                </div>
+            </div>
+        </div>
+
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 40px;"><input type="checkbox" id="selectAllBox" onclick="toggleSelectAll()"></th>
+                    <th>标题 / 描述</th>
+                    <th style="width: 120px;">截止日期</th>
+                    <th style="width: 120px;">发布状态</th>
+                    <th style="width: 100px;">板块</th>
+                    <th style="width: 100px;">上传时间</th>
+                    <th style="width: 140px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="adminTableBody"></tbody>
+        </table>
+    </div>
+
+    <div class="modal fade" id="adminEditModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">管理员修改</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adminEditForm">
+                        <input type="hidden" id="editId">
+                        <div class="mb-3">
+                            <label class="form-label">标题</label>
+                            <input type="text" class="form-control" id="editTitle">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">描述</label>
+                            <textarea class="form-control" id="editDesc" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">截止日期</label>
+                            <input type="date" class="form-control" id="editDeadline">
+                            <div class="form-text">如果设置“直到截止日期展示”，以此日期为准。</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">板块</label>
+                            <select class="form-select" id="editTag">
+                                <optgroup label="常规活动">
+                                    <option value="校级活动">校级活动</option>
+                                    <option value="院级活动">院级活动</option>
+                                    <option value="社团活动">社团活动</option>
+                                    <option value="讲座">讲座</option>
+                                <optgroup label="特别栏目">
+                                    <option value="编者的话">编者的话</option>
+                                    <option value="读者来信">读者来信</option>
+                                    <option value="技巧趣闻">技巧趣闻</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="adminCollegeGroup" style="display:none;">
+                            <label class="form-label">所属学院</label>
+                            <input type="text" class="form-control" id="editCollegeName">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="saveAdminEdit()">保存修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let messages = [];
+        let currentUser = "";
+        const editModal = new bootstrap.Modal(document.getElementById('adminEditModal'));
+
+        window.onload = function() {
+            currentUser = localStorage.getItem('haidaUser');
+            if (!currentUser || !ADMIN_LIST.includes(currentUser)) {
+                alert("无权访问");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // 获取本地时间
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0'); 
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+
+            document.getElementById('targetPublishDate').value = todayStr;
+            loadData();
+            
+            // 监听下拉菜单变化
+            document.getElementById('editTag').addEventListener('change', function() {
+                const val = this.value;
+                document.getElementById('adminCollegeGroup').style.display = (val === '院级活动') ? 'block' : 'none';
+            });
+        };
+
+        // 从服务器获取
+        async function loadData() {
+            try {
+                const response = await fetch('/api/get_messages');
+                messages = await response.json();
+                renderTable();
+            } catch (e) { alert("加载数据失败"); }
+        }
+
+        // 保存到服务器
+        async function saveData() {
+            try {
+                await fetch('/api/save_messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(messages)
+                });
+            } catch (e) { alert("保存失败"); }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('adminTableBody');
+            tbody.innerHTML = '';
+            
+            messages.forEach((msg) => {
+                let statusHtml = '<span class="text-muted small">未发布</span>';
+                if (msg.keepUntilDeadline) {
+                    statusHtml = `<span class="badge badge-sticky">长期展示</span>`;
+                } else if (msg.publishDate) {
+                    statusHtml = `<span class="badge badge-publish">${msg.publishDate}</span>`;
+                }
+
+                const today = new Date().toISOString().split('T')[0];
+                const isExpired = msg.deadline && today >= msg.deadline;
+                const titleClass = isExpired ? "text-expired" : "fw-bold text-primary";
+                const deadlineDisplay = msg.deadline ? msg.deadline : "<span class='text-muted'>-</span>";
+
+                let displayTitle = msg.title;
+                if (msg.tag === '院级活动' && msg.collegeName) {
+                    displayTitle = `【${msg.collegeName}】 ${msg.title}`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-center"><input type="checkbox" class="row-checkbox" value="${msg.id}"></td>
+                    <td>
+                        <div class="${titleClass}">${displayTitle} ${isExpired ? '(已过期)' : ''}</div>
+                        <div class="text-muted small text-truncate" style="max-width: 300px;">${msg.desc}</div>
+                    </td>
+                    <td>${deadlineDisplay}</td>
+                    <td>${statusHtml}</td>
+                    <td>${msg.tag || '-'}</td>
+                    <td>${msg.uploadTime.split(' ')[0]}</td>
+                    <td>
+                        <button class="btn btn-outline-primary btn-sm mb-1" onclick="openEdit(${msg.id})">修改</button>
+                        <button class="btn btn-danger btn-sm mb-1" onclick="deleteItem(${msg.id})">删</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openEdit(id) {
+            const msg = messages.find(m => m.id === id);
+            if(!msg) return;
+            document.getElementById('editId').value = msg.id;
+            document.getElementById('editTitle').value = msg.title;
+            document.getElementById('editDesc').value = msg.desc;
+            document.getElementById('editDeadline').value = msg.deadline || '';
+            document.getElementById('editTag').value = msg.tag || '校级活动';
+            
+            // --- 修改逻辑：处理学院名回显 ---
+            const collegeInput = document.getElementById('editCollegeName');
+            const collegeGroup = document.getElementById('adminCollegeGroup');
+            if (msg.tag === '院级活动') {
+                collegeGroup.style.display = 'block';
+                collegeInput.value = msg.collegeName || '';
+            } else {
+                collegeGroup.style.display = 'none';
+                collegeInput.value = '';
+            }
+            // -----------------------------
+
+            editModal.show();
+        }
+
+        async function saveAdminEdit() {
+            const id = parseInt(document.getElementById('editId').value);
+            const msg = messages.find(m => m.id === id);
+            if(msg) {
+                msg.title = document.getElementById('editTitle').value;
+                msg.desc = document.getElementById('editDesc').value;
+                msg.deadline = document.getElementById('editDeadline').value;
+                msg.tag = document.getElementById('editTag').value;
+                
+                // --- 修改逻辑：保存学院名 ---
+                if (msg.tag === '院级活动') {
+                    msg.collegeName = document.getElementById('editCollegeName').value;
+                } else {
+                    msg.collegeName = '';
+                }
+                // -------------------------
+
+                await saveData();
+                renderTable();
+                editModal.hide();
+            }
+        }
+
+        async function deleteItem(id) {
+            if(confirm("确定删除？")) {
+                messages = messages.filter(m => m.id !== id);
+                await saveData();
+                renderTable();
+            }
+        }
+
+        async function publishSelected(mode) {
+            const targetDate = document.getElementById('targetPublishDate').value;
+            const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+            if (checkboxes.length === 0) return alert("请先勾选条目");
+
+            checkboxes.forEach(cb => {
+                const id = parseInt(cb.value);
+                const msg = messages.find(m => m.id === id);
+                if (msg) {
+                    msg.keepUntilDeadline = false;
+                    msg.publishDate = '';
+
+                    if (mode === 'once') {
+                        msg.publishDate = targetDate;
+                    } else if (mode === 'sticky') {
+                        if (!msg.deadline) {
+                            alert(`条目 "${msg.title}" 没有设置截止日期，无法设置为长期展示。`);
+                            return; 
+                        }
+                        msg.keepUntilDeadline = true;
+                    }
+                    msg.status = '已发布'; 
+                }
+            });
+            await saveData();
+            renderTable();
+        }
+
+        async function publishTodayUploads() {
+            const todayStr = new Date().toLocaleString('zh-CN', { hour12: false }).split(' ')[0]; 
+            const targetDate = document.getElementById('targetPublishDate').value;
+
+            let count = 0;
+            messages.forEach(msg => {
+                if (msg.uploadTime && msg.uploadTime.startsWith(todayStr)) {
+                    msg.publishDate = targetDate;
+                    msg.keepUntilDeadline = false;
+                    msg.status = '已发布'; 
+                    count++;
+                }
+            });
+            alert(`已将今日上传的 ${count} 条内容发布到 ${targetDate}`);
+            await saveData();
+            renderTable();
+        }
+
+        async function resetPublishStatus() {
+            const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+            checkboxes.forEach(cb => {
+                const id = parseInt(cb.value);
+                const msg = messages.find(m => m.id === id);
+                if (msg) {
+                    msg.keepUntilDeadline = false;
+                    msg.publishDate = '';
+                    msg.status = '待审核';
+                }
+            });
+            await saveData();
+            renderTable();
+        }
+
+        function toggleSelectAll() {
+            const checked = document.getElementById('selectAllBox').checked;
+            document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = checked);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+[
+  {
+    "deadline": "",
+    "desc": "通过网盘分享的文件：PPTof OUC from HaidaPaper 链接：https://pan.baidu.com/s/1LLpQPcAFOle78UUGOfW53A?pwd=2r6z提取码：2r6z",
+    "id": 1773453532832,
+    "keepUntilDeadline": false,
+    "publishDate": "2026-03-14",
+    "reviewer": "alice",
+    "sourceUrl": "https://pan.baidu.com/s/1LLpQPcAFOle78UUGOfW53A?pwd=2r6z",
+    "status": "已发布",
+    "tag": "技巧趣闻",
+    "title": "海大PPT模板：分为标准PPT、百年校区特别版和其他来源的PPT",
+    "type": "url",
+    "uploadTime": "2026/3/14 09:58:52",
+    "uploader": "alice",
+    "worker": "-"
+  },
+  {
+    "deadline": "",
+    "desc": "http://152.136.109.247:8080/\n海大小报最新出品，还在担心AI生成带有的大量无意义的**、换行、空格吗，使用海大文本清洗器简单清除这一切。",
+    "id": 1773453018334,
+    "keepUntilDeadline": false,
+    "publishDate": "2026-03-14",
+    "reviewer": "alice",
+    "sourceUrl": "http://152.136.109.247:8080/",
+    "status": "已发布",
+    "tag": "编者的话",
+    "title": "海大文本工坊 - 文本精炼",
+    "type": "url",
+    "uploadTime": "2026/3/14 09:50:18",
+    "uploader": "alice",
+    "worker": "-"
+  },
+  {
+    "deadline": "",
+    "desc": "有同学反馈的无法直接点击PDF中文字使用超链接打开信息来源的问题，这是因为使用了QQ自带的功能不全的PDF浏览工具(如在线预览),这使得PDF以图片形式展示并导致超链接失效，解决方法是在QQ关于文件的相关设置中将在线预览关闭并使用WPS等工具打开，而不是使用QQ自带的预览工具。此问题为QQ强行推行自家QQ浏览器导致的不便，无法依靠小报技术手段解决，请大家谅解。",
+    "id": 1773453168123,
+    "keepUntilDeadline": false,
+    "publishDate": "2026-03-14",
+    "reviewer": "-",
+    "sourceUrl": "",
+    "status": "已发布",
+    "tag": "编者的话",
+    "title": "关于直接从PDF中打开信息来源的问题",
+    "type": "text",
+    "uploadTime": "2026/3/14 09:52:48",
+    "uploader": "alice",
+    "worker": "alice"
+  }
+]

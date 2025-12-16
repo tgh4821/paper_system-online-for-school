@@ -1,0 +1,106 @@
+import os
+import json
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+import requests
+from bs4 import BeautifulSoup
+
+# --- 1. 基础配置 ---
+# 获取当前脚本所在的绝对路径，确保在任何地方运行都不会找不到文件
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# 强制指定静态文件目录为脚本所在目录
+app = Flask(__name__, static_folder=BASE_DIR)
+CORS(app) # 允许跨域请求
+
+DATA_FILE = os.path.join(BASE_DIR, 'data.json')
+
+# --- 2. 数据读写函数 ---
+def load_data_from_disk():
+    if not os.path.exists(DATA_FILE):
+        return []
+    with open(DATA_FILE, 'r', encoding='utf-8') as f:
+        try:
+            return json.load(f)
+        except:
+            return []
+
+def save_data_to_disk(data):
+    with open(DATA_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+# --- 3. 页面与静态文件路由 ---
+@app.route('/')
+def index_page():
+    # 访问根目录时返回 index.html
+    return send_from_directory(BASE_DIR, 'index.html')
+
+@app.route('/<path:filename>')
+def static_files(filename):
+    # 允许访问当前目录下的所有文件 (html, js, css等)
+    return send_from_directory(BASE_DIR, filename)
+
+# --- 4. 数据 API 接口 ---
+@app.route('/api/get_messages', methods=['GET'])
+def api_get_messages():
+    data = load_data_from_disk()
+    return jsonify(data)
+
+@app.route('/api/save_messages', methods=['POST'])
+def api_save_messages():
+    new_data = request.json
+    save_data_to_disk(new_data)
+    return jsonify({"status": "success"})
+
+# --- 5. 核心修改：增强版获取标题接口 ---
+@app.route('/get_title', methods=['GET'])
+def get_title():
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+
+    print(f"[-] 正在尝试获取标题: {url}") # 在服务器黑框打印日志
+
+    # 更加真实的浏览器请求头，防止被微信拦截
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+    }
+
+    try:
+        # 设置超时时间为 10 秒，避免卡死
+        response = requests.get(url, headers=headers, timeout=10)
+        # 强制指定编码为 utf-8，防止中文乱码
+        response.encoding = 'utf-8'
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # 针对微信公众号的优化：优先查找 meta 标签
+        # 微信通常把标题放在 og:title 或 twitter:title 中
+        og_title = soup.find('meta', property='og:title')
+        twitter_title = soup.find('meta', property='twitter:title')
+        
+        if og_title and og_title.get('content'):
+            title = og_title.get('content')
+        elif twitter_title and twitter_title.get('content'):
+            title = twitter_title.get('content')
+        elif soup.title:
+            # 去除标题前后的空白字符
+            title = soup.title.string.strip()
+        else:
+            title = "未命名标题"
+
+        print(f"[+] 获取成功: {title}")
+        return jsonify({'title': title})
+
+    except Exception as e:
+        print(f"[!] 获取失败: {e}")
+        # 如果获取失败，返回 URL 本身，保证前端不报错
+        return jsonify({'title': url})
+
+if __name__ == '__main__':
+    # 监听 0.0.0.0 允许局域网访问，端口 5000
+    print("服务器已启动... 请在浏览器访问 http://localhost:5000")
+    app.run(host='0.0.0.0', port=5000)

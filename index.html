@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海大小报 - 协作平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
+        #login-section { display: flex; justify-content: center; align-items: center; flex-grow: 1; }
+        .login-card { width: 100%; max-width: 400px; padding: 2rem; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        #dashboard-section { background-color: #fff; padding-top: 20px; flex-grow: 1; display: none; }
+        .table thead th { font-weight: 700; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
+        .tag-btn { border-radius: 20px; margin-right: 5px; margin-bottom: 5px; border: 1px solid #ced4da; background-color: #fff; color: #6c757d; }
+        .tag-btn.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+        .status-draft { background-color: #6c757d; color: #fff; }
+        .status-pending { background-color: #ffc107; color: #000; }
+        .status-done { background-color: #198754; color: #fff; }
+        .spinner-border-sm { width: 1rem; height: 1rem; border-width: 0.15em; }
+        .admin-badge { background-color: #dc3545; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-left: 5px; }
+        
+        /* 光荣榜样式 */
+        .rank-1 { color: #d63384; font-weight: bold; }
+        .rank-2 { color: #fd7e14; font-weight: bold; }
+        .rank-3 { color: #ffc107; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="login-section">
+        <div class="login-card">
+            <h3 class="text-center mb-4">海大小报<br>协作平台</h3>
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="usernameInput" placeholder="例如: 张三" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-control" id="passwordInput" placeholder="任意密码" required>
+                </div>
+                <div class="alert alert-info small py-2">
+                    <strong>提示：</strong> 输入用户名和密码直接点击登陆自动注册
+                </div>
+                <button type="submit" class="btn btn-primary w-100">登录</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="dashboard-section">
+        <div class="container">
+            <div class="row align-items-center mb-4">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search...">
+                        <button class="btn btn-outline-secondary" type="button">Search</button>
+                    </div>
+                </div>
+                <div class="col-md-7 text-end">
+                    <span class="fw-bold me-2" id="userDisplay">用户</span>
+                    <button class="btn btn-secondary btn-sm" onclick="loadMessagesFromServer()">🔄 刷新数据</button>
+                    <button class="btn btn-danger btn-sm" id="logoutBtn">注销</button>
+                </div>
+            </div>
+
+            <div class="row align-items-center mb-4">
+                <div class="col-md-6"><h2 class="mb-0">消息刊载流程</h2></div>
+                <div class="col-md-6 text-end">
+                    <button class="btn btn-outline-primary me-1">预览</button>
+                    <button class="btn btn-primary me-1" onclick="openEditModal('text')">上传纯文本消息</button>
+                    <button class="btn btn-success" onclick="openGloryModal()">🏆 光荣榜</button>
+                    <a href="special.html" class="btn btn-outline-dark ms-1">专栏投稿</a>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="urlInput" placeholder="在此粘贴公众号链接...">
+                    <button class="btn btn-outline-secondary" type="button" onclick="addUrlEntry()" id="addUrlBtn">添加地址</button>
+                </div>
+                <div class="form-text text-muted">提示：可以粘贴微信公众号文章的链接自动生成标题。</div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="min-width: 160px;">操作</th>
+                            <th scope="col">标题</th>
+                            <th scope="col">状态</th>
+                            <th scope="col">描述</th>
+                            <th scope="col">板块</th>
+                            <th scope="col">截止日期</th>
+                            <th scope="col">审阅人</th>
+                            <th scope="col">上传时间</th>
+                            <th scope="col">上工者</th>
+                        </tr>
+                    </thead>
+                    <tbody id="messageTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">编辑</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="editId">
+                        <input type="hidden" id="actionType"> 
+
+                        <div class="mb-3" id="sourceUrlGroup" style="display:none;">
+                            <label class="form-label text-muted">源链接</label>
+                            <p><a href="#" id="sourceUrlDisplay" target="_blank" class="text-break"></a></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">标题</label>
+                            <input type="text" class="form-control" id="formTitle" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">设置截止日期 <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <div class="input-group-text bg-white">
+                                    <input class="form-check-input mt-0" type="checkbox" id="useDeadlineCheck" onchange="toggleDeadline()">
+                                    <label class="form-check-label ms-2 small text-muted" for="useDeadlineCheck" style="cursor: pointer;">启用</label>
+                                </div>
+                                <input type="date" class="form-control" id="deadlineInput" disabled>
+                            </div>
+                            <div class="form-text">超过该日期后，消息将自动停止刊载。建议务必设置！</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">标签</label>
+                            <div id="tagsContainer">
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">校级活动</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">院级活动</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">社团活动</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">讲座</button>
+                            </div>
+                            <input type="hidden" id="selectedTag">
+                        </div>
+
+                        <div class="mb-3" id="collegeInputGroup" style="display:none;">
+                            <label class="form-label">所属学院 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="collegeNameInput" placeholder="例如：信息科学与工程学部">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">描述</label>
+                            <textarea class="form-control" id="formDesc" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveBtn" onclick="saveMessage()">提交</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="gloryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">🏆 本月光荣榜</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning text-center mb-3">
+                        <strong>💰 激励政策</strong><br>
+                        本月上传并被【最终发布】数量最多的编辑<br>
+                        奖励 <strong>50元红包</strong>！<br>
+                        <small>（奖励将于下个月第一个周四发布）</small>
+                    </div>
+                    <h6 class="text-center mb-3" id="gloryMonthTitle">统计月份：--月</h6>
+                    <table class="table table-striped text-center">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>编辑姓名</th>
+                                <th>已发布数量</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gloryTableBody"></tbody>
+                    </table>
+                    <div class="text-center text-muted small mt-2">
+                        注：仅统计状态为“已发布”的条目。<br>数据实时更新，下月1号重置。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // 全局变量
+        let currentUser = "";
+        let isAdmin = false; 
+        let messages = []; 
+        const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+        const gloryModal = new bootstrap.Modal(document.getElementById('gloryModal'));
+
+        // ============ 1. 初始化 ============
+        window.onload = function() {
+            // 检查登录状态
+            const savedUser = localStorage.getItem('haidaUser');
+            if (savedUser) {
+                login(savedUser); // 登录并加载数据
+            }
+        };
+
+        // ============ 2. 数据交互 (连接 server.py) ============
+        
+        // 从服务器加载数据
+        async function loadMessagesFromServer() {
+            try {
+                const response = await fetch('/api/get_messages');
+                if (response.ok) {
+                    messages = await response.json();
+                    renderTable();
+                } else {
+                    console.error("加载数据失败");
+                }
+            } catch (error) { 
+                console.error("无法连接服务器", error); 
+            }
+        }
+
+        // 保存数据到服务器
+        async function saveData() {
+            try {
+                await fetch('/api/save_messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(messages)
+                });
+            } catch (error) { 
+                alert("保存失败：无法连接服务器"); 
+            }
+        }
+
+        // 尝试获取 URL 标题
+        async function addUrlEntry() {
+            const urlInput = document.getElementById('urlInput');
+            const addBtn = document.getElementById('addUrlBtn');
+            const url = urlInput.value.trim();
+            if (!url) return alert("请输入网址");
+
+            addBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            addBtn.disabled = true;
+            
+            let fetchedTitle = url;
+
+            try {
+                const response = await fetch(`/get_title?url=${encodeURIComponent(url)}`);
+                const data = await response.json();
+                if (data.title) fetchedTitle = data.title;
+            } catch (e) { 
+                console.log("助手未连接或获取失败"); 
+            }
+
+            const newMsg = {
+                id: Date.now(),
+                type: 'url',
+                sourceUrl: url,
+                title: fetchedTitle,
+                status: '待编辑', 
+                desc: 'None',
+                tag: '',
+                collegeName: '', // 新增字段
+                deadline: '',          
+                publishDate: '',       
+                keepUntilDeadline: false, 
+                reviewer: '-',
+                uploadTime: new Date().toLocaleString('zh-CN', { hour12: false }),
+                uploader: currentUser,
+                worker: '-'
+            };
+
+            messages.unshift(newMsg); 
+            await saveData();
+            renderTable();
+            
+            urlInput.value = '';
+            addBtn.innerHTML = '添加地址';
+            addBtn.disabled = false;
+        }
+
+        // ============ 3. 用户与界面逻辑 ============
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('usernameInput').value;
+            if (username.trim()) login(username);
+        });
+
+        function login(username) {
+            currentUser = username;
+            
+            // 安全检查：防止 config.js 丢失导致报错
+            if (typeof ADMIN_LIST === 'undefined') {
+                alert("错误：config.js 未加载，无法判断管理员权限！请检查文件。");
+                return;
+            }
+
+            isAdmin = ADMIN_LIST.includes(currentUser); 
+            localStorage.setItem('haidaUser', currentUser);
+            
+            let displayHtml = `您好, ${currentUser} ${isAdmin ? '<span class="admin-badge">管理员</span>' : ''}`;
+            if (isAdmin) {
+                displayHtml += ` <a href="admin.html" class="btn btn-dark btn-sm ms-2" target="_blank">进入所有条目管理</a>`;
+            }
+            
+            document.getElementById('userDisplay').innerHTML = displayHtml;
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('dashboard-section').style.display = 'block';
+            
+            // 登录成功后，立即从服务器加载数据
+            loadMessagesFromServer();
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            localStorage.removeItem('haidaUser');
+            location.reload(); 
+        });
+
+        function toggleDeadline() {
+            const checkBox = document.getElementById('useDeadlineCheck');
+            const dateInput = document.getElementById('deadlineInput');
+            dateInput.disabled = !checkBox.checked;
+            if (checkBox.checked) {
+                try { dateInput.showPicker(); } catch (e) { dateInput.focus(); }
+            } else {
+                dateInput.value = '';
+            }
+        }
+
+        function selectTag(btn) {
+            document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tagVal = btn.textContent.trim();
+            document.getElementById('selectedTag').value = tagVal;
+
+            // --- 修改逻辑：如果是院级活动，显示输入框 ---
+            const collegeGroup = document.getElementById('collegeInputGroup');
+            if (tagVal === '院级活动') {
+                collegeGroup.style.display = 'block';
+            } else {
+                collegeGroup.style.display = 'none';
+                document.getElementById('collegeNameInput').value = ''; 
+            }
+        }
+
+        function openEditModal(mode, specificAction) {
+            document.getElementById('editForm').reset();
+            document.getElementById('sourceUrlGroup').style.display = 'none';
+            document.getElementById('deadlineInput').disabled = true;
+            document.getElementById('deadlineInput').value = '';
+            document.getElementById('useDeadlineCheck').checked = false;
+            document.querySelectorAll('.tag-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('selectedTag').value = '';
+            
+            // 重置学院输入框
+            document.getElementById('collegeInputGroup').style.display = 'none';
+            document.getElementById('collegeNameInput').value = '';
+
+            const saveBtn = document.getElementById('saveBtn');
+            const actionTypeInput = document.getElementById('actionType');
+
+            if (mode === 'text') {
+                document.getElementById('modalTitle').textContent = "上传新消息";
+                document.getElementById('editId').value = "new_text";
+                actionTypeInput.value = "submit_draft";
+                saveBtn.textContent = "提交";
+                saveBtn.className = "btn btn-primary";
+            } else {
+                const id = mode;
+                const msg = messages.find(m => m.id === id);
+                if (!msg) return;
+
+                document.getElementById('editId').value = msg.id;
+                document.getElementById('formTitle').value = msg.title;
+                document.getElementById('formDesc').value = msg.desc === 'None' ? '' : msg.desc;
+                
+                if (msg.deadline) {
+                    document.getElementById('deadlineInput').value = msg.deadline;
+                    document.getElementById('deadlineInput').disabled = false;
+                    document.getElementById('useDeadlineCheck').checked = true;
+                }
+
+                if (msg.type === 'url') {
+                    document.getElementById('sourceUrlGroup').style.display = 'block';
+                    document.getElementById('sourceUrlDisplay').textContent = msg.sourceUrl;
+                    document.getElementById('sourceUrlDisplay').href = msg.sourceUrl;
+                }
+                if (msg.tag) {
+                    const tagBtn = Array.from(document.querySelectorAll('.tag-btn')).find(b => b.textContent.trim() === msg.tag);
+                    if (tagBtn) tagBtn.classList.add('active');
+                    document.getElementById('selectedTag').value = msg.tag;
+
+                    // --- 修改逻辑：回显学院名 ---
+                    if (msg.tag === '院级活动') {
+                        document.getElementById('collegeInputGroup').style.display = 'block';
+                        document.getElementById('collegeNameInput').value = msg.collegeName || '';
+                    }
+                }
+
+                if (specificAction === 'review') {
+                    document.getElementById('modalTitle').textContent = "管理员/他人 审阅";
+                    actionTypeInput.value = "submit_review";
+                    saveBtn.textContent = "审阅通过";
+                    saveBtn.className = "btn btn-success";
+                } else if (specificAction === 'admin_force_edit') {
+                    document.getElementById('modalTitle').textContent = "管理员强制修改";
+                    actionTypeInput.value = "force_update";
+                    saveBtn.textContent = "强制保存";
+                    saveBtn.className = "btn btn-danger"; 
+                } else if (specificAction === 'modify_reviewer') {
+                    document.getElementById('modalTitle').textContent = "修正已发布消息";
+                    actionTypeInput.value = "submit_review_update";
+                    saveBtn.textContent = "保存修改";
+                    saveBtn.className = "btn btn-success";
+                } else {
+                    document.getElementById('modalTitle').textContent = "编辑消息";
+                    actionTypeInput.value = "submit_draft";
+                    saveBtn.textContent = "提交修改";
+                    saveBtn.className = "btn btn-primary";
+                }
+            }
+            editModal.show();
+        }
+
+        async function saveMessage() {
+            const editId = document.getElementById('editId').value;
+            const actionType = document.getElementById('actionType').value;
+            const title = document.getElementById('formTitle').value;
+            const desc = document.getElementById('formDesc').value || "None";
+            const tag = document.getElementById('selectedTag').value;
+            const collegeName = document.getElementById('collegeNameInput').value;
+
+            let deadlineVal = "";
+            const isDeadlineChecked = document.getElementById('useDeadlineCheck').checked;
+            if (isDeadlineChecked) {
+                deadlineVal = document.getElementById('deadlineInput').value;
+            }
+
+            if (!title || !tag) return alert("请填写标题和标签");
+            if (tag === '院级活动' && !collegeName) return alert("请填写所属学院");
+
+            // 截止日期提醒
+            if (!isDeadlineChecked) {
+                const confirmNoDeadline = confirm("⚠️ 温馨提示：\n\n您没有设置【截止日期】。\n建议设置日期，以便系统在过期后自动将消息下架。\n\n您确定要继续提交吗？");
+                if (!confirmNoDeadline) return; 
+            }
+
+            const now = new Date().toLocaleString('zh-CN', { hour12: false });
+
+            if (editId === "new_text") {
+                messages.unshift({
+                    id: Date.now(),
+                    type: 'text',
+                    sourceUrl: '',
+                    title: title,
+                    status: '待审核',
+                    desc: desc,
+                    tag: tag,
+                    collegeName: (tag === '院级活动') ? collegeName : '', // 保存学院
+                    deadline: deadlineVal,
+                    publishDate: '',
+                    keepUntilDeadline: false,
+                    reviewer: '-',
+                    uploadTime: now,
+                    uploader: currentUser,
+                    worker: currentUser
+                });
+            } else {
+                const msg = messages.find(m => m.id == editId);
+                if (msg) {
+                    msg.title = title;
+                    msg.desc = desc;
+                    msg.tag = tag;
+                    msg.collegeName = (tag === '院级活动') ? collegeName : ''; // 更新学院
+                    msg.deadline = deadlineVal;
+
+                    if (actionType === 'submit_draft') {
+                        msg.status = '待审核';
+                        msg.worker = currentUser; 
+                    } else if (actionType === 'submit_review') {
+                        msg.status = '已完成';
+                        msg.reviewer = currentUser; 
+                    }
+                }
+            }
+            await saveData();
+            renderTable();
+            editModal.hide();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('messageTableBody');
+            tbody.innerHTML = '';
+
+            messages.forEach(msg => {
+                // 如果已发布，则在主页隐藏
+                if (msg.status === '已发布') return; 
+
+                let badgeClass = '';
+                if (msg.status === '待编辑') badgeClass = 'status-draft';
+                else if (msg.status === '待审核') badgeClass = 'status-pending';
+                else if (msg.status === '已完成') badgeClass = 'status-done';
+
+                let actionBtn = '';
+                let deleteBtn = '';
+
+                if (msg.uploader === currentUser || isAdmin) {
+                    deleteBtn = `<button class="btn btn-outline-danger btn-sm" onclick="deleteMessage(${msg.id})">×</button>`;
+                }
+
+                if (msg.status === '待编辑') {
+                    actionBtn = `<button class="btn btn-warning btn-sm text-dark fw-bold me-1" onclick="openEditModal(${msg.id}, 'work')">上工</button>`;
+                } 
+                else if (msg.status === '待审核') {
+                    if (isAdmin) {
+                        actionBtn = `<button class="btn btn-primary btn-sm me-1" onclick="openEditModal(${msg.id}, 'review')">🔍 审阅</button>`;
+                    } else if (msg.worker === currentUser) {
+                        actionBtn = `<button class="btn btn-outline-primary btn-sm me-1" onclick="openEditModal(${msg.id}, 'edit')">修改</button>`;
+                    } else {
+                        actionBtn = `<button class="btn btn-primary btn-sm me-1" onclick="openEditModal(${msg.id}, 'review')">🔍 审阅</button>`;
+                    }
+                } 
+                else if (msg.status === '已完成') {
+                    if (isAdmin) {
+                        actionBtn = `<button class="btn btn-danger btn-sm me-1" onclick="openEditModal(${msg.id}, 'admin_force_edit')">强制修改</button>`;
+                    } else if (msg.reviewer === currentUser) {
+                        actionBtn = `<button class="btn btn-outline-success btn-sm me-1" onclick="openEditModal(${msg.id}, 'modify_reviewer')">修改</button>`;
+                    } else {
+                        actionBtn = `<button class="btn btn-success btn-sm me-1" disabled>已完成</button>`;
+                    }
+                }
+
+                let displayTitle = msg.title;
+                if (msg.tag === '院级活动' && msg.collegeName) {
+                    displayTitle = `【${msg.collegeName}】 ${msg.title}`;
+                }
+
+                let titleHtml = msg.type === 'url' ? `<a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none">${displayTitle}</a>` : displayTitle;
+                let deadlineText = msg.deadline || "<span class='text-muted small'>-</span>";
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-nowrap">${actionBtn} ${deleteBtn}</td>
+                    <td><div class="fw-bold" style="max-width: 280px;">${titleHtml}</div></td>
+                    <td><span class="badge ${badgeClass}">${msg.status}</span></td>
+                    <td class="small text-muted text-truncate" style="max-width: 150px;">${msg.desc}</td>
+                    <td>${msg.tag || '-'}</td>
+                    <td>${deadlineText}</td>
+                    <td><span class="fw-bold text-success">${msg.reviewer}</span></td>
+                    <td class="small">${msg.uploadTime.split(' ')[0]}</td>
+                    <td>${msg.worker}<br><span class="text-muted small">由 ${msg.uploader} 创建</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function deleteMessage(id) {
+            const msg = messages.find(m => m.id === id);
+            if (!msg) return;
+            if (isAdmin || msg.uploader === currentUser) {
+                if (confirm("确定删除? " + (isAdmin ? "(管理员操作)" : ""))) {
+                    messages = messages.filter(m => m.id !== id);
+                    await saveData();
+                    renderTable();
+                }
+            }
+        }
+
+        function selectTag(btn) {
+            document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tagVal = btn.textContent.trim();
+            document.getElementById('selectedTag').value = tagVal;
+            
+            // 联动显示
+            const collegeGroup = document.getElementById('collegeInputGroup');
+            if (tagVal === '院级活动') {
+                collegeGroup.style.display = 'block';
+            } else {
+                collegeGroup.style.display = 'none';
+                document.getElementById('collegeNameInput').value = '';
+            }
+        }
+
+        // --- 光荣榜 ---
+        function openGloryModal() {
+            const now = new Date();
+            const curYear = now.getFullYear();
+            const curMonth = now.getMonth() + 1; 
+            
+            document.getElementById('gloryMonthTitle').textContent = `统计时间：${curYear}年${curMonth}月`;
+
+            const stats = {}; 
+
+            messages.forEach(msg => {
+                if (msg.status !== '已发布') return;
+                
+                const timeStr = msg.uploadTime || "";
+                const separator = timeStr.includes('/') ? '/' : '-';
+                const parts = timeStr.split(' ')[0].split(separator);
+                
+                if (parts.length >= 2) {
+                    const msgYear = parseInt(parts[0]);
+                    const msgMonth = parseInt(parts[1]);
+                    
+                    if (msgYear === curYear && msgMonth === curMonth) {
+                        const user = msg.uploader || "未知";
+                        if (!stats[user]) stats[user] = 0;
+                        stats[user]++;
+                    }
+                }
+            });
+
+            const sorted = Object.entries(stats).sort((a, b) => b[1] - a[1]); 
+
+            const tbody = document.getElementById('gloryTableBody');
+            tbody.innerHTML = '';
+            
+            if (sorted.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-muted">本月暂无发布记录</td></tr>';
+            } else {
+                sorted.forEach((item, index) => {
+                    const rank = index + 1;
+                    const name = item[0];
+                    const count = item[1];
+                    let rankClass = "";
+                    let icon = "";
+                    
+                    if (rank === 1) { rankClass = "rank-1"; icon = "🥇 "; }
+                    else if (rank === 2) { rankClass = "rank-2"; icon = "🥈 "; }
+                    else if (rank === 3) { rankClass = "rank-3"; icon = "🥉 "; }
+
+                    tbody.innerHTML += `
+                        <tr class="${rankClass}">
+                            <td>${icon}第${rank}名</td>
+                            <td>${name}</td>
+                            <td>${count} 条</td>
+                        </tr>
+                    `;
+                });
+            }
+            gloryModal.show();
+        }
+    </script>
+</body>
+</html>
