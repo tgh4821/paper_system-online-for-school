@@ -14,11 +14,36 @@ app = Flask(__name__, static_folder=BASE_DIR)
 CORS(app) 
 
 DATA_FILE = os.path.join(BASE_DIR, 'data.json')
+BACKUP_KEEP_COUNT = int(os.environ.get('BACKUP_KEEP_COUNT', '30'))
 
 # 引入线程锁：防止多个管理员同时点击保存时互相踩踏数据
 data_lock = threading.Lock()
 
 # --- 2. 安全的数据读写函数 ---
+
+def cleanup_old_backups(keep_count):
+    """只保留最近 keep_count 份 data_backup_*.json"""
+    if keep_count <= 0:
+        return
+
+    try:
+        backup_files = []
+        for filename in os.listdir(BASE_DIR):
+            if filename.startswith('data_backup_') and filename.endswith('.json'):
+                full_path = os.path.join(BASE_DIR, filename)
+                if os.path.isfile(full_path):
+                    backup_files.append(full_path)
+
+        backup_files.sort(key=lambda path: os.path.getmtime(path), reverse=True)
+        files_to_remove = backup_files[keep_count:]
+
+        for old_file in files_to_remove:
+            try:
+                os.remove(old_file)
+            except Exception as remove_error:
+                print(f"[警告] 删除旧备份失败: {old_file}, 错误: {remove_error}")
+    except Exception as cleanup_error:
+        print(f"[警告] 清理旧备份时发生异常: {cleanup_error}")
 
 def load_data_from_disk():
     """安全读取：带损坏备份机制"""
@@ -53,6 +78,7 @@ def save_data_to_disk(data):
             if os.path.exists(DATA_FILE):
                 backup_name = os.path.join(BASE_DIR, f"data_backup_{int(time.time() * 1000)}.json")
                 shutil.copy(DATA_FILE, backup_name)
+                cleanup_old_backups(BACKUP_KEEP_COUNT)
 
             # 1. 先将数据完整写入一个临时文件
             with open(temp_file, 'w', encoding='utf-8') as f:
