@@ -1,30 +1,111 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>海大小报 - 协作平台</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/bootstrap/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
-        #login-section { display: flex; justify-content: center; align-items: center; flex-grow: 1; }
-        .login-card { width: 100%; max-width: 400px; padding: 2rem; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        #dashboard-section { background-color: #fff; padding-top: 20px; flex-grow: 1; display: none; }
-        .table thead th { font-weight: 700; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
-        .tag-btn { border-radius: 20px; margin-right: 5px; margin-bottom: 5px; border: 1px solid #ced4da; background-color: #fff; color: #6c757d; }
-        .tag-btn.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
-        .status-draft { background-color: #6c757d; color: #fff; }
-        .status-pending { background-color: #ffc107; color: #000; }
-        .status-done { background-color: #198754; color: #fff; }
-        .spinner-border-sm { width: 1rem; height: 1rem; border-width: 0.15em; }
-        .admin-badge { background-color: #dc3545; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-left: 5px; }
-        
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #login-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #dashboard-section {
+            background-color: #fff;
+            padding-top: 20px;
+            flex-grow: 1;
+            display: none;
+        }
+
+        .table thead th {
+            font-weight: 700;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+        }
+
+        .tag-btn {
+            border-radius: 20px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #ced4da;
+            background-color: #fff;
+            color: #6c757d;
+        }
+
+        .tag-btn.active {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+
+        .status-draft {
+            background-color: #6c757d;
+            color: #fff;
+        }
+
+        .status-pending {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .status-done {
+            background-color: #198754;
+            color: #fff;
+        }
+
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+            border-width: 0.15em;
+        }
+
+        .admin-badge {
+            background-color: #dc3545;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 5px;
+        }
+
         /* 光荣榜样式 */
-        .rank-1 { color: #d63384; font-weight: bold; }
-        .rank-2 { color: #fd7e14; font-weight: bold; }
-        .rank-3 { color: #ffc107; font-weight: bold; }
+        .rank-1 {
+            color: #d63384;
+            font-weight: bold;
+        }
+
+        .rank-2 {
+            color: #fd7e14;
+            font-weight: bold;
+        }
+
+        .rank-3 {
+            color: #ffc107;
+            font-weight: bold;
+        }
     </style>
 </head>
+
 <body>
 
     <div id="login-section">
@@ -64,7 +145,9 @@
             </div>
 
             <div class="row align-items-center mb-4">
-                <div class="col-md-6"><h2 class="mb-0">消息刊载流程</h2></div>
+                <div class="col-md-6">
+                    <h2 class="mb-0">消息刊载流程</h2>
+                </div>
                 <div class="col-md-6 text-end">
                     <button class="btn btn-outline-primary me-1">预览</button>
                     <button class="btn btn-primary me-1" onclick="openEditModal('text')">上传纯文本消息</button>
@@ -76,7 +159,8 @@
             <div class="mb-3">
                 <div class="input-group">
                     <input type="text" class="form-control" id="urlInput" placeholder="在此粘贴公众号链接...">
-                    <button class="btn btn-outline-secondary" type="button" onclick="addUrlEntry()" id="addUrlBtn">添加地址</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="addUrlEntry()"
+                        id="addUrlBtn">添加地址</button>
                 </div>
                 <div class="form-text text-muted">提示：可以粘贴微信公众号文章的链接自动生成标题。</div>
             </div>
@@ -112,7 +196,7 @@
                 <div class="modal-body">
                     <form id="editForm">
                         <input type="hidden" id="editId">
-                        <input type="hidden" id="actionType"> 
+                        <input type="hidden" id="actionType">
 
                         <div class="mb-3" id="sourceUrlGroup" style="display:none;">
                             <label class="form-label text-muted">源链接</label>
@@ -128,14 +212,16 @@
                             <label class="form-label">设置截止日期 <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <div class="input-group-text bg-white">
-                                    <input class="form-check-input mt-0" type="checkbox" id="useDeadlineCheck" onchange="toggleDeadline()">
-                                    <label class="form-check-label ms-2 small text-muted" for="useDeadlineCheck" style="cursor: pointer;">启用</label>
+                                    <input class="form-check-input mt-0" type="checkbox" id="useDeadlineCheck"
+                                        onchange="toggleDeadline()">
+                                    <label class="form-check-label ms-2 small text-muted" for="useDeadlineCheck"
+                                        style="cursor: pointer;">启用</label>
                                 </div>
                                 <input type="date" class="form-control" id="deadlineInput" disabled>
                             </div>
                             <div class="form-text">超过该日期后，消息将自动停止刊载。建议务必设置！</div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">标签</label>
                             <div id="tagsContainer">
@@ -199,19 +285,19 @@
         </div>
     </div>
 
-    <script src="config.js"></script> 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="config.js"></script>
+    <script src="assets/bootstrap/bootstrap.bundle.min.js"></script>
 
     <script>
         // 全局变量
         let currentUser = "";
-        let isAdmin = false; 
-        let messages = []; 
+        let isAdmin = false;
+        let messages = [];
         const editModal = new bootstrap.Modal(document.getElementById('editModal'));
         const gloryModal = new bootstrap.Modal(document.getElementById('gloryModal'));
 
         // ============ 1. 初始化 ============
-        window.onload = function() {
+        window.onload = function () {
             // 检查登录状态
             const savedUser = localStorage.getItem('haidaUser');
             if (savedUser) {
@@ -220,7 +306,7 @@
         };
 
         // ============ 2. 数据交互 (连接 server.py) ============
-        
+
         // 从服务器加载数据
         async function loadMessagesFromServer() {
             try {
@@ -231,8 +317,8 @@
                 } else {
                     console.error("加载数据失败");
                 }
-            } catch (error) { 
-                console.error("无法连接服务器", error); 
+            } catch (error) {
+                console.error("无法连接服务器", error);
             }
         }
 
@@ -244,8 +330,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(messages)
                 });
-            } catch (error) { 
-                alert("保存失败：无法连接服务器"); 
+            } catch (error) {
+                alert("保存失败：无法连接服务器");
             }
         }
 
@@ -258,15 +344,15 @@
 
             addBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             addBtn.disabled = true;
-            
+
             let fetchedTitle = url;
 
             try {
                 const response = await fetch(`/get_title?url=${encodeURIComponent(url)}`);
                 const data = await response.json();
                 if (data.title) fetchedTitle = data.title;
-            } catch (e) { 
-                console.log("助手未连接或获取失败"); 
+            } catch (e) {
+                console.log("助手未连接或获取失败");
             }
 
             const newMsg = {
@@ -274,23 +360,23 @@
                 type: 'url',
                 sourceUrl: url,
                 title: fetchedTitle,
-                status: '待编辑', 
+                status: '待编辑',
                 desc: 'None',
                 tag: '',
                 collegeName: '', // 新增字段
-                deadline: '',          
-                publishDate: '',       
-                keepUntilDeadline: false, 
+                deadline: '',
+                publishDate: '',
+                keepUntilDeadline: false,
                 reviewer: '-',
                 uploadTime: new Date().toLocaleString('zh-CN', { hour12: false }),
                 uploader: currentUser,
                 worker: '-'
             };
 
-            messages.unshift(newMsg); 
+            messages.unshift(newMsg);
             await saveData();
             renderTable();
-            
+
             urlInput.value = '';
             addBtn.innerHTML = '添加地址';
             addBtn.disabled = false;
@@ -298,7 +384,7 @@
 
         // ============ 3. 用户与界面逻辑 ============
 
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const username = document.getElementById('usernameInput').value;
             if (username.trim()) login(username);
@@ -306,32 +392,32 @@
 
         function login(username) {
             currentUser = username;
-            
+
             // 安全检查：防止 config.js 丢失导致报错
             if (typeof ADMIN_LIST === 'undefined') {
                 alert("错误：config.js 未加载，无法判断管理员权限！请检查文件。");
                 return;
             }
 
-            isAdmin = ADMIN_LIST.includes(currentUser); 
+            isAdmin = ADMIN_LIST.includes(currentUser);
             localStorage.setItem('haidaUser', currentUser);
-            
+
             let displayHtml = `您好, ${currentUser} ${isAdmin ? '<span class="admin-badge">管理员</span>' : ''}`;
             if (isAdmin) {
                 displayHtml += ` <a href="admin.html" class="btn btn-dark btn-sm ms-2" target="_blank">进入所有条目管理</a>`;
             }
-            
+
             document.getElementById('userDisplay').innerHTML = displayHtml;
             document.getElementById('login-section').style.display = 'none';
             document.getElementById('dashboard-section').style.display = 'block';
-            
+
             // 登录成功后，立即从服务器加载数据
             loadMessagesFromServer();
         }
 
-        document.getElementById('logoutBtn').addEventListener('click', function() {
+        document.getElementById('logoutBtn').addEventListener('click', function () {
             localStorage.removeItem('haidaUser');
-            location.reload(); 
+            location.reload();
         });
 
         function toggleDeadline() {
@@ -357,7 +443,7 @@
                 collegeGroup.style.display = 'block';
             } else {
                 collegeGroup.style.display = 'none';
-                document.getElementById('collegeNameInput').value = ''; 
+                document.getElementById('collegeNameInput').value = '';
             }
         }
 
@@ -369,7 +455,7 @@
             document.getElementById('useDeadlineCheck').checked = false;
             document.querySelectorAll('.tag-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('selectedTag').value = '';
-            
+
             // 重置学院输入框
             document.getElementById('collegeInputGroup').style.display = 'none';
             document.getElementById('collegeNameInput').value = '';
@@ -391,7 +477,7 @@
                 document.getElementById('editId').value = msg.id;
                 document.getElementById('formTitle').value = msg.title;
                 document.getElementById('formDesc').value = msg.desc === 'None' ? '' : msg.desc;
-                
+
                 if (msg.deadline) {
                     document.getElementById('deadlineInput').value = msg.deadline;
                     document.getElementById('deadlineInput').disabled = false;
@@ -424,7 +510,7 @@
                     document.getElementById('modalTitle').textContent = "管理员强制修改";
                     actionTypeInput.value = "force_update";
                     saveBtn.textContent = "强制保存";
-                    saveBtn.className = "btn btn-danger"; 
+                    saveBtn.className = "btn btn-danger";
                 } else if (specificAction === 'modify_reviewer') {
                     document.getElementById('modalTitle').textContent = "修正已发布消息";
                     actionTypeInput.value = "submit_review_update";
@@ -460,7 +546,7 @@
             // 截止日期提醒
             if (!isDeadlineChecked) {
                 const confirmNoDeadline = confirm("⚠️ 温馨提示：\n\n您没有设置【截止日期】。\n建议设置日期，以便系统在过期后自动将消息下架。\n\n您确定要继续提交吗？");
-                if (!confirmNoDeadline) return; 
+                if (!confirmNoDeadline) return;
             }
 
             const now = new Date().toLocaleString('zh-CN', { hour12: false });
@@ -494,10 +580,10 @@
 
                     if (actionType === 'submit_draft') {
                         msg.status = '待审核';
-                        msg.worker = currentUser; 
+                        msg.worker = currentUser;
                     } else if (actionType === 'submit_review') {
                         msg.status = '已完成';
-                        msg.reviewer = currentUser; 
+                        msg.reviewer = currentUser;
                     }
                 }
             }
@@ -512,7 +598,7 @@
 
             messages.forEach(msg => {
                 // 如果已发布，则在主页隐藏
-                if (msg.status === '已发布') return; 
+                if (msg.status === '已发布') return;
 
                 let badgeClass = '';
                 if (msg.status === '待编辑') badgeClass = 'status-draft';
@@ -528,7 +614,7 @@
 
                 if (msg.status === '待编辑') {
                     actionBtn = `<button class="btn btn-warning btn-sm text-dark fw-bold me-1" onclick="openEditModal(${msg.id}, 'work')">上工</button>`;
-                } 
+                }
                 else if (msg.status === '待审核') {
                     if (isAdmin) {
                         actionBtn = `<button class="btn btn-primary btn-sm me-1" onclick="openEditModal(${msg.id}, 'review')">🔍 审阅</button>`;
@@ -537,7 +623,7 @@
                     } else {
                         actionBtn = `<button class="btn btn-primary btn-sm me-1" onclick="openEditModal(${msg.id}, 'review')">🔍 审阅</button>`;
                     }
-                } 
+                }
                 else if (msg.status === '已完成') {
                     if (isAdmin) {
                         actionBtn = `<button class="btn btn-danger btn-sm me-1" onclick="openEditModal(${msg.id}, 'admin_force_edit')">强制修改</button>`;
@@ -589,7 +675,7 @@
             btn.classList.add('active');
             const tagVal = btn.textContent.trim();
             document.getElementById('selectedTag').value = tagVal;
-            
+
             // 联动显示
             const collegeGroup = document.getElementById('collegeInputGroup');
             if (tagVal === '院级活动') {
@@ -604,23 +690,23 @@
         function openGloryModal() {
             const now = new Date();
             const curYear = now.getFullYear();
-            const curMonth = now.getMonth() + 1; 
-            
+            const curMonth = now.getMonth() + 1;
+
             document.getElementById('gloryMonthTitle').textContent = `统计时间：${curYear}年${curMonth}月`;
 
-            const stats = {}; 
+            const stats = {};
 
             messages.forEach(msg => {
                 if (msg.status !== '已发布') return;
-                
+
                 const timeStr = msg.uploadTime || "";
                 const separator = timeStr.includes('/') ? '/' : '-';
                 const parts = timeStr.split(' ')[0].split(separator);
-                
+
                 if (parts.length >= 2) {
                     const msgYear = parseInt(parts[0]);
                     const msgMonth = parseInt(parts[1]);
-                    
+
                     if (msgYear === curYear && msgMonth === curMonth) {
                         const user = msg.uploader || "未知";
                         if (!stats[user]) stats[user] = 0;
@@ -629,11 +715,11 @@
                 }
             });
 
-            const sorted = Object.entries(stats).sort((a, b) => b[1] - a[1]); 
+            const sorted = Object.entries(stats).sort((a, b) => b[1] - a[1]);
 
             const tbody = document.getElementById('gloryTableBody');
             tbody.innerHTML = '';
-            
+
             if (sorted.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="3" class="text-muted">本月暂无发布记录</td></tr>';
             } else {
@@ -643,7 +729,7 @@
                     const count = item[1];
                     let rankClass = "";
                     let icon = "";
-                    
+
                     if (rank === 1) { rankClass = "rank-1"; icon = "🥇 "; }
                     else if (rank === 2) { rankClass = "rank-2"; icon = "🥈 "; }
                     else if (rank === 3) { rankClass = "rank-3"; icon = "🥉 "; }
@@ -661,4 +747,5 @@
         }
     </script>
 </body>
+
 </html>

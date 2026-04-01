@@ -1,21 +1,54 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>所有条目管理 - 管理员后台</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="assets/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/bootstrap-icons/bootstrap-icons.css">
     <style>
-        body { background-color: #fff; padding: 20px; }
-        .container-fluid { max-width: 1400px; }
-        .table thead th { border-bottom: 2px solid #ddd; font-weight: 600; font-size: 14px; }
-        .table tbody td { vertical-align: middle; font-size: 14px; color: #333; }
-        .badge-publish { background-color: #198754; color: white; font-size: 0.8em; margin-right: 5px; }
-        .badge-sticky { background-color: #0d6efd; color: white; font-size: 0.8em; }
-        .text-expired { text-decoration: line-through; color: #999; }
+        body {
+            background-color: #fff;
+            padding: 20px;
+        }
+
+        .container-fluid {
+            max-width: 1400px;
+        }
+
+        .table thead th {
+            border-bottom: 2px solid #ddd;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .badge-publish {
+            background-color: #198754;
+            color: white;
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+
+        .badge-sticky {
+            background-color: #0d6efd;
+            color: white;
+            font-size: 0.8em;
+        }
+
+        .text-expired {
+            text-decoration: line-through;
+            color: #999;
+        }
     </style>
 </head>
+
 <body>
 
     <div class="container-fluid">
@@ -51,7 +84,8 @@
         <table class="table table-bordered table-hover">
             <thead>
                 <tr>
-                    <th class="text-center" style="width: 40px;"><input type="checkbox" id="selectAllBox" onclick="toggleSelectAll()"></th>
+                    <th class="text-center" style="width: 40px;"><input type="checkbox" id="selectAllBox"
+                            onclick="toggleSelectAll()"></th>
                     <th>标题 / 描述</th>
                     <th style="width: 120px;">截止日期</th>
                     <th style="width: 120px;">发布状态</th>
@@ -114,14 +148,14 @@
         </div>
     </div>
 
-    <script src="config.js"></script> 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="config.js"></script>
+    <script src="assets/bootstrap/bootstrap.bundle.min.js"></script>
     <script>
         let messages = [];
         let currentUser = "";
         const editModal = new bootstrap.Modal(document.getElementById('adminEditModal'));
 
-        window.onload = function() {
+        window.onload = function () {
             currentUser = localStorage.getItem('haidaUser');
             if (!currentUser || !ADMIN_LIST.includes(currentUser)) {
                 alert("无权访问");
@@ -132,15 +166,15 @@
             // 获取本地时间
             const now = new Date();
             const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0'); 
+            const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
             const todayStr = `${year}-${month}-${day}`;
 
             document.getElementById('targetPublishDate').value = todayStr;
             loadData();
-            
+
             // 监听下拉菜单变化
-            document.getElementById('editTag').addEventListener('change', function() {
+            document.getElementById('editTag').addEventListener('change', function () {
                 const val = this.value;
                 document.getElementById('adminCollegeGroup').style.display = (val === '院级活动') ? 'block' : 'none';
             });
@@ -169,7 +203,7 @@
         function renderTable() {
             const tbody = document.getElementById('adminTableBody');
             tbody.innerHTML = '';
-            
+
             messages.forEach((msg) => {
                 let statusHtml = '<span class="text-muted small">未发布</span>';
                 if (msg.keepUntilDeadline) {
@@ -210,13 +244,13 @@
 
         function openEdit(id) {
             const msg = messages.find(m => m.id === id);
-            if(!msg) return;
+            if (!msg) return;
             document.getElementById('editId').value = msg.id;
             document.getElementById('editTitle').value = msg.title;
             document.getElementById('editDesc').value = msg.desc;
             document.getElementById('editDeadline').value = msg.deadline || '';
             document.getElementById('editTag').value = msg.tag || '校级活动';
-            
+
             // --- 修改逻辑：处理学院名回显 ---
             const collegeInput = document.getElementById('editCollegeName');
             const collegeGroup = document.getElementById('adminCollegeGroup');
@@ -235,12 +269,12 @@
         async function saveAdminEdit() {
             const id = parseInt(document.getElementById('editId').value);
             const msg = messages.find(m => m.id === id);
-            if(msg) {
+            if (msg) {
                 msg.title = document.getElementById('editTitle').value;
                 msg.desc = document.getElementById('editDesc').value;
                 msg.deadline = document.getElementById('editDeadline').value;
                 msg.tag = document.getElementById('editTag').value;
-                
+
                 // --- 修改逻辑：保存学院名 ---
                 if (msg.tag === '院级活动') {
                     msg.collegeName = document.getElementById('editCollegeName').value;
@@ -256,7 +290,7 @@
         }
 
         async function deleteItem(id) {
-            if(confirm("确定删除？")) {
+            if (confirm("确定删除？")) {
                 messages = messages.filter(m => m.id !== id);
                 await saveData();
                 renderTable();
@@ -280,11 +314,11 @@
                     } else if (mode === 'sticky') {
                         if (!msg.deadline) {
                             alert(`条目 "${msg.title}" 没有设置截止日期，无法设置为长期展示。`);
-                            return; 
+                            return;
                         }
                         msg.keepUntilDeadline = true;
                     }
-                    msg.status = '已发布'; 
+                    msg.status = '已发布';
                 }
             });
             await saveData();
@@ -292,7 +326,7 @@
         }
 
         async function publishTodayUploads() {
-            const todayStr = new Date().toLocaleString('zh-CN', { hour12: false }).split(' ')[0]; 
+            const todayStr = new Date().toLocaleString('zh-CN', { hour12: false }).split(' ')[0];
             const targetDate = document.getElementById('targetPublishDate').value;
 
             let count = 0;
@@ -300,7 +334,7 @@
                 if (msg.uploadTime && msg.uploadTime.startsWith(todayStr)) {
                     msg.publishDate = targetDate;
                     msg.keepUntilDeadline = false;
-                    msg.status = '已发布'; 
+                    msg.status = '已发布';
                     count++;
                 }
             });
@@ -330,4 +364,5 @@
         }
     </script>
 </body>
+
 </html>

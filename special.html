@@ -1,25 +1,95 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>海大小报 - 特别栏目投稿</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/bootstrap/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f0f8ff; min-height: 100vh; display: flex; flex-direction: column; }
-        #login-section { display: flex; justify-content: center; align-items: center; flex-grow: 1; }
-        .login-card { width: 100%; max-width: 400px; padding: 2rem; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        #dashboard-section { background-color: #fff; padding-top: 20px; flex-grow: 1; display: none; }
-        .table thead th { font-weight: 700; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
-        .tag-btn { border-radius: 20px; margin-right: 5px; margin-bottom: 5px; border: 1px solid #ced4da; background-color: #fff; color: #6c757d; }
-        .tag-btn.active { background-color: #6610f2; color: white; border-color: #6610f2; }
-        .status-draft { background-color: #6c757d; color: #fff; }
-        .status-pending { background-color: #ffc107; color: #000; }
-        .status-done { background-color: #198754; color: #fff; }
-        .admin-badge { background-color: #dc3545; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-left: 5px; }
-        .spinner-border-sm { width: 1rem; height: 1rem; border-width: 0.15em; }
+        body {
+            background-color: #f0f8ff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #login-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #dashboard-section {
+            background-color: #fff;
+            padding-top: 20px;
+            flex-grow: 1;
+            display: none;
+        }
+
+        .table thead th {
+            font-weight: 700;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+        }
+
+        .tag-btn {
+            border-radius: 20px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #ced4da;
+            background-color: #fff;
+            color: #6c757d;
+        }
+
+        .tag-btn.active {
+            background-color: #6610f2;
+            color: white;
+            border-color: #6610f2;
+        }
+
+        .status-draft {
+            background-color: #6c757d;
+            color: #fff;
+        }
+
+        .status-pending {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .status-done {
+            background-color: #198754;
+            color: #fff;
+        }
+
+        .admin-badge {
+            background-color: #dc3545;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 5px;
+        }
+
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+            border-width: 0.15em;
+        }
     </style>
 </head>
+
 <body>
 
     <!-- 1. 登录 -->
@@ -35,7 +105,8 @@
                     <label class="form-label">密码</label>
                     <input type="password" class="form-control" id="passwordInput" required>
                 </div>
-                <button type="submit" class="btn btn-primary w-100" style="background-color: #6610f2; border:none;">登录专栏系统</button>
+                <button type="submit" class="btn btn-primary w-100"
+                    style="background-color: #6610f2; border:none;">登录专栏系统</button>
             </form>
         </div>
     </div>
@@ -59,7 +130,8 @@
             <div class="card p-3 mb-4 border-0 bg-light">
                 <div class="d-flex align-items-center mb-3">
                     <div class="flex-grow-1">
-                        <button class="btn btn-primary" style="background-color: #6610f2;" onclick="openEditModal('text')">
+                        <button class="btn btn-primary" style="background-color: #6610f2;"
+                            onclick="openEditModal('text')">
                             <span class="fs-5">+</span> 撰写新内容 (纯文本)
                         </button>
                     </div>
@@ -68,7 +140,8 @@
                 <!-- 新增：URL 输入区域 -->
                 <div class="input-group">
                     <input type="text" class="form-control" id="urlInput" placeholder="在此粘贴公众号链接 (作为技巧趣闻/素材)...">
-                    <button class="btn btn-outline-secondary" type="button" onclick="addUrlEntry()" id="addUrlBtn">添加地址</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="addUrlEntry()"
+                        id="addUrlBtn">添加地址</button>
                 </div>
                 <div class="form-text text-muted">提示：自动获取标题，默认归类为“技巧趣闻”。</div>
             </div>
@@ -105,14 +178,15 @@
                 <div class="modal-body">
                     <form id="editForm">
                         <input type="hidden" id="editId">
-                        <input type="hidden" id="actionType"> 
+                        <input type="hidden" id="actionType">
 
                         <!-- 新增：源链接显示区域 (默认隐藏) -->
                         <div class="mb-3" id="sourceUrlGroup" style="display:none;">
                             <label class="form-label text-muted">源链接</label>
-                            <p><a href="#" id="sourceUrlDisplay" target="_blank" class="text-break text-decoration-none"></a></p>
+                            <p><a href="#" id="sourceUrlDisplay" target="_blank"
+                                    class="text-break text-decoration-none"></a></p>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">标题</label>
                             <input type="text" class="form-control" id="formTitle" placeholder="例如：第10期编者按" required>
@@ -122,13 +196,15 @@
                             <label class="form-label">有效期设置</label>
                             <div class="input-group">
                                 <div class="input-group-text bg-white">
-                                    <input class="form-check-input mt-0" type="checkbox" id="useDeadlineCheck" onchange="toggleDeadline()">
-                                    <label class="form-check-label ms-2 small text-muted" for="useDeadlineCheck">启用截止日期</label>
+                                    <input class="form-check-input mt-0" type="checkbox" id="useDeadlineCheck"
+                                        onchange="toggleDeadline()">
+                                    <label class="form-check-label ms-2 small text-muted"
+                                        for="useDeadlineCheck">启用截止日期</label>
                                 </div>
                                 <input type="date" class="form-control" id="deadlineInput" disabled>
                             </div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">栏目分类</label>
                             <div id="tagsContainer">
@@ -141,31 +217,33 @@
 
                         <div class="mb-3">
                             <label class="form-label">正文/描述</label>
-                            <textarea class="form-control" id="formDesc" rows="8" placeholder="在这里撰写正文或推荐语..."></textarea>
+                            <textarea class="form-control" id="formDesc" rows="8"
+                                placeholder="在这里撰写正文或推荐语..."></textarea>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" style="background-color: #6610f2;" onclick="saveMessage()">提交</button>
+                    <button type="button" class="btn btn-primary" style="background-color: #6610f2;"
+                        onclick="saveMessage()">提交</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="config.js"></script> 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="config.js"></script>
+    <script src="assets/bootstrap/bootstrap.bundle.min.js"></script>
 
     <script>
         const SPECIAL_TAGS = ["编者的话", "读者来信", "技巧趣闻"];
-        
+
         let currentUser = "";
-        let isAdmin = false; 
-        let messages = []; 
+        let isAdmin = false;
+        let messages = [];
         const editModal = new bootstrap.Modal(document.getElementById('editModal'));
 
         // 初始化加载
-        window.onload = function() {
+        window.onload = function () {
             const savedUser = localStorage.getItem('haidaUser');
             if (savedUser) login(savedUser);
             // 注意：login函数内部已经调用了 loadMessagesFromServer
@@ -187,7 +265,7 @@
             try {
                 await fetch('/api/save_messages', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(messages)
                 });
             } catch (e) { alert("保存失败"); }
@@ -202,7 +280,7 @@
 
             addBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             addBtn.disabled = true;
-            
+
             let fetchedTitle = url;
 
             try {
@@ -210,8 +288,8 @@
                 const response = await fetch(`/get_title?url=${encodeURIComponent(url)}`);
                 const data = await response.json();
                 if (data.title) fetchedTitle = data.title;
-            } catch (e) { 
-                console.log("获取标题失败"); 
+            } catch (e) {
+                console.log("获取标题失败");
             }
 
             const newMsg = {
@@ -219,28 +297,28 @@
                 type: 'url',
                 sourceUrl: url,
                 title: fetchedTitle,
-                status: '待审核', 
+                status: '待审核',
                 desc: 'None',
                 tag: '技巧趣闻', // 默认设为技巧趣闻，确保能显示在列表中
-                deadline: '',          
-                publishDate: '',       
-                keepUntilDeadline: false, 
+                deadline: '',
+                publishDate: '',
+                keepUntilDeadline: false,
                 reviewer: '-',
                 uploadTime: new Date().toLocaleString('zh-CN', { hour12: false }),
                 uploader: currentUser,
                 worker: '-'
             };
 
-            messages.unshift(newMsg); 
+            messages.unshift(newMsg);
             await saveData();
             renderTable();
-            
+
             urlInput.value = '';
             addBtn.innerHTML = '添加地址';
             addBtn.disabled = false;
         }
 
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', function (e) {
             e.preventDefault();
             login(document.getElementById('usernameInput').value);
         });
@@ -251,9 +329,9 @@
                 alert("config.js 未正确加载");
                 return;
             }
-            isAdmin = ADMIN_LIST.includes(currentUser); 
+            isAdmin = ADMIN_LIST.includes(currentUser);
             localStorage.setItem('haidaUser', currentUser);
-            
+
             let displayHtml = `您好, ${currentUser} ${isAdmin ? '<span class="admin-badge">管理员</span>' : ''}`;
             if (isAdmin) {
                 displayHtml += ` <a href="admin.html" class="btn btn-dark btn-sm ms-2" target="_blank">进入后台</a>`;
@@ -264,16 +342,16 @@
             loadMessagesFromServer();
         }
 
-        document.getElementById('logoutBtn').addEventListener('click', function() {
+        document.getElementById('logoutBtn').addEventListener('click', function () {
             localStorage.removeItem('haidaUser');
-            location.reload(); 
+            location.reload();
         });
 
         function toggleDeadline() {
             const checkBox = document.getElementById('useDeadlineCheck');
             const dateInput = document.getElementById('deadlineInput');
             dateInput.disabled = !checkBox.checked;
-            if (checkBox.checked) try { dateInput.showPicker(); } catch (e) {}
+            if (checkBox.checked) try { dateInput.showPicker(); } catch (e) { }
             else dateInput.value = '';
         }
 
@@ -288,10 +366,10 @@
             document.getElementById('deadlineInput').disabled = true;
             document.querySelectorAll('.tag-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('selectedTag').value = '';
-            
+
             // 重置链接显示区域
             document.getElementById('sourceUrlGroup').style.display = 'none';
-            
+
             if (mode === 'text') {
                 document.getElementById('modalTitle').textContent = "撰写新内容";
                 document.getElementById('editId').value = "new_text";
@@ -299,7 +377,7 @@
             } else {
                 const msg = messages.find(m => m.id === mode);
                 if (!msg) return;
-                
+
                 document.getElementById('modalTitle').textContent = "编辑内容";
                 document.getElementById('editId').value = msg.id;
                 document.getElementById('formTitle').value = msg.title;
@@ -329,7 +407,7 @@
             const title = document.getElementById('formTitle').value;
             const desc = document.getElementById('formDesc').value || "None";
             const tag = document.getElementById('selectedTag').value;
-            
+
             let deadlineVal = document.getElementById('useDeadlineCheck').checked ? document.getElementById('deadlineInput').value : "";
 
             if (!title || !tag) return alert("请填写标题和栏目");
@@ -411,7 +489,7 @@
                 tbody.appendChild(tr);
             });
         }
-        
+
         async function deleteMessage(id) {
             if (confirm("确定删除？")) {
                 messages = messages.filter(m => m.id !== id);
@@ -421,4 +499,5 @@
         }
     </script>
 </body>
+
 </html>
