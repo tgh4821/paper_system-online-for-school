@@ -364,16 +364,21 @@
             return '';
         }
 
+        function isHttpUrl(url) {
+            return /^https?:\/\//i.test((url || '').trim());
+        }
+
         function formatTitleHtml(msg) {
             let finalTitle = msg.title;
+            const sourceUrl = (msg.sourceUrl || '').trim();
 
             // 校院级活动支持学院前缀（兼容旧标签）
             if (normalizeTagForBoard(msg.tag) === '校院级活动' && msg.collegeName) {
                 finalTitle = `【${msg.collegeName}】${msg.title}`;
             }
 
-            if (msg.type === 'url' && msg.sourceUrl) {
-                return `<a href="${msg.sourceUrl}" target="_blank" class="paper-link" data-pdf-link="${msg.sourceUrl}">${finalTitle}</a>`;
+            if (msg.type === 'url' && isHttpUrl(sourceUrl)) {
+                return `<a href="${sourceUrl}" target="_blank" class="paper-link" data-pdf-link="${sourceUrl}">${finalTitle}</a>`;
             }
             return finalTitle;
         }
@@ -511,7 +516,9 @@
                 list.forEach((msg, i) => {
                     const index = startIndex + i;
                     const qrId = `qrcode-${msg.id}`;
-                    const hasSourceUrl = !!msg.sourceUrl;
+                    const sourceUrl = (msg.sourceUrl || '').trim();
+                    const hasSourceUrl = !!sourceUrl;
+                    const canJumpSourceUrl = isHttpUrl(sourceUrl);
                     const hasImage = !!msg.imageUrl;
                     const descText = (msg.desc && msg.desc !== 'None') ? msg.desc : '暂无简介。';
 
@@ -524,11 +531,13 @@
                     }
 
                     let linkLineHtml = '';
-                    if (hasSourceUrl) {
-                        linkLineHtml += `<a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none" style="color:#d63384;" data-pdf-link="${msg.sourceUrl}">🔗 点击跳转原文</a>`;
+                    if (canJumpSourceUrl) {
+                        linkLineHtml += `<a href="${sourceUrl}" target="_blank" class="text-decoration-none" style="color:#d63384;" data-pdf-link="${sourceUrl}">🔗 点击跳转原文</a>`;
+                    } else if (hasSourceUrl) {
+                        linkLineHtml += `<span style="color:#6c757d;">🔗 来源为微信小程序链接，暂不支持网页跳转</span>`;
                     }
                     if (hasImage) {
-                        const separator = hasSourceUrl ? '　' : '';
+                        const separator = (canJumpSourceUrl || hasSourceUrl) ? '　' : '';
                         linkLineHtml += `${separator}<a href="${msg.imageUrl}" target="_blank" class="text-decoration-none" style="color:#0d6efd;" data-pdf-link="${msg.imageUrl}">🖼 查看原图</a>`;
                     }
 
@@ -536,8 +545,8 @@
                         ? `<div style="font-size:12px;">${linkLineHtml}</div>`
                         : '';
 
-                    const qrHtml = hasSourceUrl
-                        ? `<div class="detail-qr" id="${qrId}" data-pdf-link="${msg.sourceUrl}" style="cursor:pointer"></div>`
+                    const qrHtml = canJumpSourceUrl
+                        ? `<div class="detail-qr" id="${qrId}" data-pdf-link="${sourceUrl}" style="cursor:pointer"></div>`
                         : '';
 
                     const div = document.createElement('div');
@@ -555,8 +564,8 @@
                         ${qrHtml}
                     </div>
                 `;
-                    if (hasSourceUrl) {
-                        div.setAttribute('data-qr-text', msg.sourceUrl);
+                    if (canJumpSourceUrl) {
+                        div.setAttribute('data-qr-text', sourceUrl);
                         div.setAttribute('data-qr-id', qrId);
                     }
                     blocks.push(div);
@@ -637,10 +646,15 @@
                     const text = block.getAttribute('data-qr-text');
                     const qrContainer = block.querySelector(`#${qrId}`);
                     if (qrContainer && qrContainer.innerHTML === '') {
-                        new QRCode(qrContainer, {
-                            text: text, width: 70, height: 70,
-                            colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L
-                        });
+                        try {
+                            new QRCode(qrContainer, {
+                                text: text, width: 70, height: 70,
+                                colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L
+                            });
+                        } catch (e) {
+                            console.warn('二维码生成失败，已跳过该条目：', text, e);
+                            qrContainer.innerHTML = '';
+                        }
                     }
                 }
             });
