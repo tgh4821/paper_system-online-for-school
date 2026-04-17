@@ -218,6 +218,11 @@
                             <input type="hidden" id="selectedTag">
                         </div>
 
+                        <div class="mb-3" id="collegeInputGroup" style="display:none;">
+                            <label class="form-label">所属学院（前缀，可选）</label>
+                            <input type="text" class="form-control" id="collegeNameInput" placeholder="例如：信息科学与工程学部">
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label">正文/描述</label>
                             <textarea class="form-control" id="formDesc" rows="8"
@@ -281,6 +286,10 @@
             return tag;
         }
 
+        function isCollegePrefixTag(tag) {
+            return normalizeTagForBoard(tag) === '校院级活动';
+        }
+
         // 新增：添加 URL 条目逻辑
         async function addUrlEntry() {
             const urlInput = document.getElementById('urlInput');
@@ -310,6 +319,7 @@
                 status: '待审核',
                 desc: 'None',
                 tag: '学校趣闻', // 默认设为学校趣闻，确保能显示在列表中
+                collegeName: '',
                 deadline: '',
                 publishDate: '',
                 keepUntilDeadline: false,
@@ -368,7 +378,16 @@
         function selectTag(btn) {
             document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            document.getElementById('selectedTag').value = btn.textContent.trim();
+            const tagVal = btn.textContent.trim();
+            document.getElementById('selectedTag').value = tagVal;
+
+            const collegeGroup = document.getElementById('collegeInputGroup');
+            if (isCollegePrefixTag(tagVal)) {
+                collegeGroup.style.display = 'block';
+            } else {
+                collegeGroup.style.display = 'none';
+                document.getElementById('collegeNameInput').value = '';
+            }
         }
 
         function openEditModal(mode) {
@@ -376,6 +395,8 @@
             document.getElementById('deadlineInput').disabled = true;
             document.querySelectorAll('.tag-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('selectedTag').value = '';
+            document.getElementById('collegeInputGroup').style.display = 'none';
+            document.getElementById('collegeNameInput').value = '';
 
             // 重置链接显示区域
             document.getElementById('sourceUrlGroup').style.display = 'none';
@@ -411,6 +432,11 @@
                     normalizedTagBtn.classList.add('active');
                     document.getElementById('selectedTag').value = normalizedTag;
                 }
+
+                if (isCollegePrefixTag(normalizedTag)) {
+                    document.getElementById('collegeInputGroup').style.display = 'block';
+                    document.getElementById('collegeNameInput').value = msg.collegeName || '';
+                }
                 document.getElementById('actionType').value = isAdmin ? "submit_review" : "submit_draft";
             }
             editModal.show();
@@ -421,6 +447,7 @@
             const title = document.getElementById('formTitle').value;
             const desc = document.getElementById('formDesc').value || "None";
             const tag = normalizeTagForBoard(document.getElementById('selectedTag').value);
+            const collegeName = document.getElementById('collegeNameInput').value;
 
             let deadlineVal = document.getElementById('useDeadlineCheck').checked ? document.getElementById('deadlineInput').value : "";
 
@@ -436,6 +463,7 @@
                     status: '待审核',
                     desc: desc,
                     tag: tag,
+                    collegeName: isCollegePrefixTag(tag) ? collegeName : '',
                     deadline: deadlineVal,
                     publishDate: '',
                     keepUntilDeadline: false,
@@ -450,6 +478,7 @@
                     msg.title = title;
                     msg.desc = desc;
                     msg.tag = tag;
+                    msg.collegeName = isCollegePrefixTag(tag) ? collegeName : '';
                     msg.deadline = deadlineVal;
                     if (isAdmin) {
                         msg.status = '已完成';
@@ -484,9 +513,14 @@
                 }
 
                 // 处理标题显示：如果是URL，显示为链接
-                let titleHtml = msg.title;
+                let displayTitle = msg.title;
+                if (isCollegePrefixTag(msg.tag) && msg.collegeName) {
+                    displayTitle = `【${msg.collegeName}】 ${msg.title}`;
+                }
+
+                let titleHtml = displayTitle;
                 if (msg.type === 'url') {
-                    titleHtml = `<a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none">${msg.title}</a> <span class="badge bg-secondary" style="font-size:0.6em">Link</span>`;
+                    titleHtml = `<a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none">${displayTitle}</a> <span class="badge bg-secondary" style="font-size:0.6em">Link</span>`;
                 }
                 const displayTag = normalizeTagForBoard(msg.tag) || '-';
 

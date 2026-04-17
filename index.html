@@ -171,6 +171,9 @@
                     <button class="btn btn-outline-secondary" type="button" onclick="addUrlEntry()"
                         id="addUrlBtn">添加地址</button>
                 </div>
+                <div class="mt-2">
+                    <input type="file" class="form-control" id="urlImageInput" accept="image/*">
+                </div>
                 <div class="form-text text-muted">提示：可以粘贴微信公众号文章的链接自动生成标题。</div>
             </div>
 
@@ -245,7 +248,7 @@
                         </div>
 
                         <div class="mb-3" id="collegeInputGroup" style="display:none;">
-                            <label class="form-label">所属学院 <span class="text-danger">*</span></label>
+                            <label class="form-label">所属学院（前缀，可选）</label>
                             <input type="text" class="form-control" id="collegeNameInput" placeholder="例如：信息科学与工程学部">
                         </div>
 
@@ -369,14 +372,22 @@
         // 尝试获取 URL 标题
         async function addUrlEntry() {
             const urlInput = document.getElementById('urlInput');
+            const urlImageInput = document.getElementById('urlImageInput');
             const addBtn = document.getElementById('addUrlBtn');
             const url = urlInput.value.trim();
+            const imageFile = urlImageInput.files[0];
             if (!url) return alert("请输入网址");
+
+            if (imageFile) {
+                if (!imageFile.type.startsWith('image/')) return alert("请选择图片文件");
+                if (imageFile.size > MAX_IMAGE_SIZE_BYTES) return alert("图片过大，请控制在 8MB 以内");
+            }
 
             addBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             addBtn.disabled = true;
 
             let fetchedTitle = url;
+            let uploadedImageUrl = '';
 
             try {
                 const response = await fetch(`/get_title?url=${encodeURIComponent(url)}`);
@@ -386,11 +397,21 @@
                 console.log("助手未连接或获取失败");
             }
 
+            if (imageFile) {
+                try {
+                    uploadedImageUrl = await uploadImageFile(imageFile);
+                } catch (e) {
+                    addBtn.innerHTML = '添加地址';
+                    addBtn.disabled = false;
+                    return alert(e.message || "图片上传失败");
+                }
+            }
+
             const newMsg = {
                 id: Date.now(),
                 type: 'url',
                 sourceUrl: url,
-                imageUrl: '',
+                imageUrl: uploadedImageUrl,
                 title: fetchedTitle,
                 status: '待编辑',
                 desc: 'None',
@@ -410,6 +431,7 @@
             renderTable();
 
             urlInput.value = '';
+            urlImageInput.value = '';
             addBtn.innerHTML = '添加地址';
             addBtn.disabled = false;
         }
@@ -468,6 +490,10 @@
             if (tag === '技巧趣闻') return '生活技巧';
             if (tag === '编者的话' || tag === '读者来信') return '学校趣闻';
             return tag;
+        }
+
+        function isCollegePrefixTag(tag) {
+            return normalizeTagForBoard(tag) === '校院级活动';
         }
 
         function setImageUploadGroupVisible(visible) {
@@ -536,15 +562,17 @@
                 body: formData
             });
 
+            const rawText = await response.text();
             let data = {};
             try {
-                data = await response.json();
+                data = rawText ? JSON.parse(rawText) : {};
             } catch (e) {
                 data = {};
             }
 
             if (!response.ok || data.status !== 'success' || !data.url) {
-                throw new Error(data.message || '图片上传失败');
+                const backendMessage = data.message || rawText || '无详细信息';
+                throw new Error(`图片上传失败（HTTP ${response.status}）：${backendMessage}`);
             }
 
             return data.url;
@@ -556,9 +584,9 @@
             const tagVal = btn.textContent.trim();
             document.getElementById('selectedTag').value = tagVal;
 
-            // 兼容旧数据：仅当历史“院级活动”标签被编辑时才显示学院输入框
+            // 选择校院级活动时允许填写学院前缀
             const collegeGroup = document.getElementById('collegeInputGroup');
-            if (tagVal === '院级活动') {
+            if (isCollegePrefixTag(tagVal)) {
                 collegeGroup.style.display = 'block';
             } else {
                 collegeGroup.style.display = 'none';
@@ -612,9 +640,9 @@
                     document.getElementById('sourceUrlDisplay').href = msg.sourceUrl;
                 }
 
-                const isTextMessage = msg.type === 'text';
-                setImageUploadGroupVisible(isTextMessage);
-                if (isTextMessage && msg.imageUrl) {
+                const canManageImage = msg.type === 'text' || msg.type === 'url';
+                setImageUploadGroupVisible(canManageImage);
+                if (canManageImage && msg.imageUrl) {
                     showImagePreview(msg.imageUrl);
                     document.getElementById('removeImageWrap').style.display = 'block';
                 }
@@ -625,8 +653,8 @@
                     if (tagBtn) tagBtn.classList.add('active');
                     document.getElementById('selectedTag').value = normalizedTag || '';
 
-                    // --- 修改逻辑：回显学院名 ---
-                    if (normalizedTag === '院级活动') {
+                    // 回显学院前缀
+                    if (isCollegePrefixTag(normalizedTag)) {
                         document.getElementById('collegeInputGroup').style.display = 'block';
                         document.getElementById('collegeNameInput').value = msg.collegeName || '';
                     }
@@ -704,7 +732,7 @@
                     status: '待审核',
                     desc: desc,
                     tag: tag,
-                    collegeName: (tag === '院级活动') ? collegeName : '', // 保存学院
+                    collegeName: isCollegePrefixTag(tag) ? collegeName : '', // 保存学院前缀
                     deadline: deadlineVal,
                     publishDate: '',
                     keepUntilDeadline: false,
@@ -723,7 +751,7 @@
                     msg.title = title;
                     msg.desc = desc;
                     msg.tag = tag;
-                    msg.collegeName = (tag === '院级活动') ? collegeName : ''; // 更新学院
+                    msg.collegeName = isCollegePrefixTag(tag) ? collegeName : ''; // 更新学院前缀
                     msg.deadline = deadlineVal;
                     msg.imageUrl = finalImageUrl;
 
@@ -784,7 +812,7 @@
                 }
 
                 let displayTitle = msg.title;
-                if (msg.tag === '院级活动' && msg.collegeName) {
+                if (isCollegePrefixTag(msg.tag) && msg.collegeName) {
                     displayTitle = `【${msg.collegeName}】 ${msg.title}`;
                 }
 
@@ -831,9 +859,9 @@
             const tagVal = btn.textContent.trim();
             document.getElementById('selectedTag').value = tagVal;
 
-            // 兼容旧数据：仅当历史“院级活动”标签被编辑时才显示学院输入框
+            // 选择校院级活动时允许填写学院前缀
             const collegeGroup = document.getElementById('collegeInputGroup');
-            if (tagVal === '院级活动') {
+            if (isCollegePrefixTag(tagVal)) {
                 collegeGroup.style.display = 'block';
             } else {
                 collegeGroup.style.display = 'none';

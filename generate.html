@@ -197,6 +197,20 @@
             line-height: 1.5;
         }
 
+        .highlight-image-wrap {
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .highlight-image {
+            width: 100%;
+            max-height: 240px;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+        }
+
         .detail-qr {
             width: 75px;
             height: 75px;
@@ -353,19 +367,15 @@
         function formatTitleHtml(msg) {
             let finalTitle = msg.title;
 
-            // 如果是院级活动且有学院名，加前缀
-            if (msg.tag === '院级活动' && msg.collegeName) {
+            // 校院级活动支持学院前缀（兼容旧标签）
+            if (normalizeTagForBoard(msg.tag) === '校院级活动' && msg.collegeName) {
                 finalTitle = `【${msg.collegeName}】${msg.title}`;
             }
 
-            const imageLinkHtml = msg.imageUrl
-                ? ` <a href="${msg.imageUrl}" target="_blank" class="paper-link" data-pdf-link="${msg.imageUrl}">[图]</a>`
-                : '';
-
             if (msg.type === 'url' && msg.sourceUrl) {
-                return `<a href="${msg.sourceUrl}" target="_blank" class="paper-link" data-pdf-link="${msg.sourceUrl}">${finalTitle}</a>${imageLinkHtml}`;
+                return `<a href="${msg.sourceUrl}" target="_blank" class="paper-link" data-pdf-link="${msg.sourceUrl}">${finalTitle}</a>`;
             }
-            return `${finalTitle}${imageLinkHtml}`;
+            return finalTitle;
         }
 
         function createBlock(htmlContent) {
@@ -452,8 +462,8 @@
                 if (!normalizedTag) return;
 
                 const isNew = (msg.publishDate === currentPdfDate);
-                const isSticky = (msg.keepUntilDeadline === true);
-                const showHighlight = (msg.type === 'url' && (isNew || isSticky));
+                // 今日上传只在当天高亮展示，次日回到常规列表样式
+                const showHighlight = isNew;
 
                 sectionMap[normalizedTag].list.push(msg);
                 if (showHighlight) sectionMap[normalizedTag].high.push(msg);
@@ -501,24 +511,54 @@
                 list.forEach((msg, i) => {
                     const index = startIndex + i;
                     const qrId = `qrcode-${msg.id}`;
+                    const hasSourceUrl = !!msg.sourceUrl;
+                    const hasImage = !!msg.imageUrl;
+                    const descText = (msg.desc && msg.desc !== 'None') ? msg.desc : '暂无简介。';
+
+                    let imageHtml = '';
+                    if (hasImage) {
+                        imageHtml = `
+                    <div class="highlight-image-wrap">
+                        <img src="${msg.imageUrl}" class="highlight-image" alt="今日上传图片" data-pdf-link="${msg.imageUrl}">
+                    </div>`;
+                    }
+
+                    let linkLineHtml = '';
+                    if (hasSourceUrl) {
+                        linkLineHtml += `<a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none" style="color:#d63384;" data-pdf-link="${msg.sourceUrl}">🔗 点击跳转原文</a>`;
+                    }
+                    if (hasImage) {
+                        const separator = hasSourceUrl ? '　' : '';
+                        linkLineHtml += `${separator}<a href="${msg.imageUrl}" target="_blank" class="text-decoration-none" style="color:#0d6efd;" data-pdf-link="${msg.imageUrl}">🖼 查看原图</a>`;
+                    }
+
+                    const linkWrapperHtml = linkLineHtml
+                        ? `<div style="font-size:12px;">${linkLineHtml}</div>`
+                        : '';
+
+                    const qrHtml = hasSourceUrl
+                        ? `<div class="detail-qr" id="${qrId}" data-pdf-link="${msg.sourceUrl}" style="cursor:pointer"></div>`
+                        : '';
+
                     const div = document.createElement('div');
                     div.className = 'content-block highlight-box';
                     div.innerHTML = `
                     <h3 class="section-title mt-0 text-primary" style="font-size:16px;">
                         🔥 今日上传 ${index}. ${formatTitleHtml(msg)}
                     </h3>
+                    ${imageHtml}
                     <div class="detail-block">
                         <div class="detail-text">
-                            <div class="detail-desc">${msg.desc || '暂无简介，请扫描二维码或点击链接查看详情。'}</div>
-                            <div style="font-size:12px;">
-                                <a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none" style="color:#d63384;" data-pdf-link="${msg.sourceUrl}">🔗 点击跳转原文</a>
-                            </div>
+                            <div class="detail-desc">${descText}</div>
+                            ${linkWrapperHtml}
                         </div>
-                        <div class="detail-qr" id="${qrId}" data-pdf-link="${msg.sourceUrl}" style="cursor:pointer"></div>
+                        ${qrHtml}
                     </div>
                 `;
-                    div.setAttribute('data-qr-text', msg.sourceUrl);
-                    div.setAttribute('data-qr-id', qrId);
+                    if (hasSourceUrl) {
+                        div.setAttribute('data-qr-text', msg.sourceUrl);
+                        div.setAttribute('data-qr-id', qrId);
+                    }
                     blocks.push(div);
                 });
                 return blocks;

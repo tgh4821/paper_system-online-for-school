@@ -173,7 +173,7 @@
             // 监听下拉菜单变化
             document.getElementById('editTag').addEventListener('change', function () {
                 const val = this.value;
-                document.getElementById('adminCollegeGroup').style.display = (val === '院级活动') ? 'block' : 'none';
+                document.getElementById('adminCollegeGroup').style.display = (normalizeTagForBoard(val) === '校院级活动') ? 'block' : 'none';
             });
         };
 
@@ -222,7 +222,7 @@
                 const deadlineDisplay = msg.deadline ? msg.deadline : "<span class='text-muted'>-</span>";
 
                 let displayTitle = msg.title;
-                if (msg.tag === '院级活动' && msg.collegeName) {
+                if (normalizeTagForBoard(msg.tag) === '校院级活动' && msg.collegeName) {
                     displayTitle = `【${msg.collegeName}】 ${msg.title}`;
                 }
                 const imageLinkHtml = msg.imageUrl
@@ -263,7 +263,7 @@
             // --- 修改逻辑：处理学院名回显 ---
             const collegeInput = document.getElementById('editCollegeName');
             const collegeGroup = document.getElementById('adminCollegeGroup');
-            if (normalizedTag === '院级活动') {
+            if (normalizedTag === '校院级活动') {
                 collegeGroup.style.display = 'block';
                 collegeInput.value = msg.collegeName || '';
             } else {
@@ -285,7 +285,7 @@
                 msg.tag = normalizeTagForBoard(document.getElementById('editTag').value);
 
                 // --- 修改逻辑：保存学院名 ---
-                if (msg.tag === '院级活动') {
+                if (msg.tag === '校院级活动') {
                     msg.collegeName = document.getElementById('editCollegeName').value;
                 } else {
                     msg.collegeName = '';
