@@ -124,15 +124,12 @@
                         <div class="mb-3">
                             <label class="form-label">板块</label>
                             <select class="form-select" id="editTag">
-                                <optgroup label="常规活动">
-                                    <option value="校级活动">校级活动</option>
-                                    <option value="院级活动">院级活动</option>
-                                    <option value="社团活动">社团活动</option>
-                                    <option value="讲座">讲座</option>
-                                <optgroup label="特别栏目">
-                                    <option value="编者的话">编者的话</option>
-                                    <option value="读者来信">读者来信</option>
-                                    <option value="技巧趣闻">技巧趣闻</option>
+                                <option value="学生权益">学生权益</option>
+                                <option value="宿舍生活">宿舍生活</option>
+                                <option value="生活技巧">生活技巧</option>
+                                <option value="学校趣闻">学校趣闻</option>
+                                <option value="社团活动">社团活动</option>
+                                <option value="校院级活动">校院级活动</option>
                             </select>
                         </div>
                         <div class="mb-3" id="adminCollegeGroup" style="display:none;">
@@ -200,6 +197,13 @@
             } catch (e) { alert("保存失败"); }
         }
 
+        function normalizeTagForBoard(tag) {
+            if (tag === '校级活动' || tag === '院级活动' || tag === '讲座' || tag === '校院级活动与讲座' || tag === '校院级活动') return '校院级活动';
+            if (tag === '技巧趣闻') return '生活技巧';
+            if (tag === '编者的话' || tag === '读者来信') return '学校趣闻';
+            return tag;
+        }
+
         function renderTable() {
             const tbody = document.getElementById('adminTableBody');
             tbody.innerHTML = '';
@@ -221,17 +225,21 @@
                 if (msg.tag === '院级活动' && msg.collegeName) {
                     displayTitle = `【${msg.collegeName}】 ${msg.title}`;
                 }
+                const imageLinkHtml = msg.imageUrl
+                    ? ` <a href="${msg.imageUrl}" target="_blank" class="badge bg-light text-dark text-decoration-none border">图</a>`
+                    : '';
+                const displayTag = normalizeTagForBoard(msg.tag) || '-';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="text-center"><input type="checkbox" class="row-checkbox" value="${msg.id}"></td>
                     <td>
-                        <div class="${titleClass}">${displayTitle} ${isExpired ? '(已过期)' : ''}</div>
+                        <div class="${titleClass}">${displayTitle}${imageLinkHtml} ${isExpired ? '(已过期)' : ''}</div>
                         <div class="text-muted small text-truncate" style="max-width: 300px;">${msg.desc}</div>
                     </td>
                     <td>${deadlineDisplay}</td>
                     <td>${statusHtml}</td>
-                    <td>${msg.tag || '-'}</td>
+                    <td>${displayTag}</td>
                     <td>${msg.uploadTime.split(' ')[0]}</td>
                     <td>
                         <button class="btn btn-outline-primary btn-sm mb-1" onclick="openEdit(${msg.id})">修改</button>
@@ -249,12 +257,13 @@
             document.getElementById('editTitle').value = msg.title;
             document.getElementById('editDesc').value = msg.desc;
             document.getElementById('editDeadline').value = msg.deadline || '';
-            document.getElementById('editTag').value = msg.tag || '校级活动';
+            const normalizedTag = normalizeTagForBoard(msg.tag) || '学生权益';
+            document.getElementById('editTag').value = normalizedTag;
 
             // --- 修改逻辑：处理学院名回显 ---
             const collegeInput = document.getElementById('editCollegeName');
             const collegeGroup = document.getElementById('adminCollegeGroup');
-            if (msg.tag === '院级活动') {
+            if (normalizedTag === '院级活动') {
                 collegeGroup.style.display = 'block';
                 collegeInput.value = msg.collegeName || '';
             } else {
@@ -273,7 +282,7 @@
                 msg.title = document.getElementById('editTitle').value;
                 msg.desc = document.getElementById('editDesc').value;
                 msg.deadline = document.getElementById('editDeadline').value;
-                msg.tag = document.getElementById('editTag').value;
+                msg.tag = normalizeTagForBoard(document.getElementById('editTag').value);
 
                 // --- 修改逻辑：保存学院名 ---
                 if (msg.tag === '院级活动') {

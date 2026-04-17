@@ -139,11 +139,11 @@
 
                 <!-- 新增：URL 输入区域 -->
                 <div class="input-group">
-                    <input type="text" class="form-control" id="urlInput" placeholder="在此粘贴公众号链接 (作为技巧趣闻/素材)...">
+                    <input type="text" class="form-control" id="urlInput" placeholder="在此粘贴公众号链接 (作为趣闻/技巧/活动素材)...">
                     <button class="btn btn-outline-secondary" type="button" onclick="addUrlEntry()"
                         id="addUrlBtn">添加地址</button>
                 </div>
-                <div class="form-text text-muted">提示：自动获取标题，默认归类为“技巧趣闻”。</div>
+                <div class="form-text text-muted">提示：自动获取标题，默认归类为“学校趣闻”。</div>
             </div>
 
             <!-- 表格 -->
@@ -208,9 +208,12 @@
                         <div class="mb-3">
                             <label class="form-label">栏目分类</label>
                             <div id="tagsContainer">
-                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">编者的话</button>
-                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">读者来信</button>
-                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">技巧趣闻</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">学生权益</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">宿舍生活</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">生活技巧</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">学校趣闻</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">社团活动</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">校院级活动</button>
                             </div>
                             <input type="hidden" id="selectedTag">
                         </div>
@@ -235,7 +238,7 @@
     <script src="assets/bootstrap/bootstrap.bundle.min.js"></script>
 
     <script>
-        const SPECIAL_TAGS = ["编者的话", "读者来信", "技巧趣闻"];
+        const SPECIAL_TAGS = ["学生权益", "宿舍生活", "生活技巧", "学校趣闻", "社团活动", "校院级活动"];
 
         let currentUser = "";
         let isAdmin = false;
@@ -271,6 +274,13 @@
             } catch (e) { alert("保存失败"); }
         }
 
+        function normalizeTagForBoard(tag) {
+            if (tag === '校级活动' || tag === '院级活动' || tag === '讲座' || tag === '校院级活动与讲座' || tag === '校院级活动') return '校院级活动';
+            if (tag === '技巧趣闻') return '生活技巧';
+            if (tag === '编者的话' || tag === '读者来信') return '学校趣闻';
+            return tag;
+        }
+
         // 新增：添加 URL 条目逻辑
         async function addUrlEntry() {
             const urlInput = document.getElementById('urlInput');
@@ -299,7 +309,7 @@
                 title: fetchedTitle,
                 status: '待审核',
                 desc: 'None',
-                tag: '技巧趣闻', // 默认设为技巧趣闻，确保能显示在列表中
+                tag: '学校趣闻', // 默认设为学校趣闻，确保能显示在列表中
                 deadline: '',
                 publishDate: '',
                 keepUntilDeadline: false,
@@ -395,8 +405,12 @@
                     document.getElementById('deadlineInput').disabled = false;
                     document.getElementById('useDeadlineCheck').checked = true;
                 }
-                const tagBtn = Array.from(document.querySelectorAll('.tag-btn')).find(b => b.textContent.trim() === msg.tag);
-                if (tagBtn) { tagBtn.classList.add('active'); document.getElementById('selectedTag').value = msg.tag; }
+                const normalizedTag = normalizeTagForBoard(msg.tag);
+                const normalizedTagBtn = Array.from(document.querySelectorAll('.tag-btn')).find(b => b.textContent.trim() === normalizedTag);
+                if (normalizedTagBtn) {
+                    normalizedTagBtn.classList.add('active');
+                    document.getElementById('selectedTag').value = normalizedTag;
+                }
                 document.getElementById('actionType').value = isAdmin ? "submit_review" : "submit_draft";
             }
             editModal.show();
@@ -406,7 +420,7 @@
             const editId = document.getElementById('editId').value;
             const title = document.getElementById('formTitle').value;
             const desc = document.getElementById('formDesc').value || "None";
-            const tag = document.getElementById('selectedTag').value;
+            const tag = normalizeTagForBoard(document.getElementById('selectedTag').value);
 
             let deadlineVal = document.getElementById('useDeadlineCheck').checked ? document.getElementById('deadlineInput').value : "";
 
@@ -455,7 +469,7 @@
             tbody.innerHTML = '';
 
             messages.forEach(msg => {
-                if (!SPECIAL_TAGS.includes(msg.tag)) return;
+                if (!SPECIAL_TAGS.includes(normalizeTagForBoard(msg.tag))) return;
                 if (msg.status === '已发布') return;
 
                 let badgeClass = '';
@@ -474,6 +488,7 @@
                 if (msg.type === 'url') {
                     titleHtml = `<a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none">${msg.title}</a> <span class="badge bg-secondary" style="font-size:0.6em">Link</span>`;
                 }
+                const displayTag = normalizeTagForBoard(msg.tag) || '-';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -481,7 +496,7 @@
                     <td><div class="fw-bold">${titleHtml}</div></td>
                     <td><span class="badge ${badgeClass}">${msg.status}</span></td>
                     <td class="small text-muted text-truncate" style="max-width: 200px;">${msg.desc === 'None' ? '' : msg.desc}</td>
-                    <td><span class="badge bg-info text-dark">${msg.tag}</span></td>
+                    <td><span class="badge bg-info text-dark">${displayTag}</span></td>
                     <td>${msg.deadline || '-'}</td>
                     <td>${msg.reviewer}</td>
                     <td class="small">${msg.uploadTime.split(' ')[0]}</td>

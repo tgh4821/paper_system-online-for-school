@@ -103,6 +103,15 @@
             color: #ffc107;
             font-weight: bold;
         }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 220px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 4px;
+            background: #fff;
+        }
     </style>
 </head>
 
@@ -225,10 +234,12 @@
                         <div class="mb-3">
                             <label class="form-label">标签</label>
                             <div id="tagsContainer">
-                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">校级活动</button>
-                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">院级活动</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">学生权益</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">宿舍生活</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">生活技巧</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">学校趣闻</button>
                                 <button type="button" class="btn tag-btn" onclick="selectTag(this)">社团活动</button>
-                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">讲座</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">校院级活动</button>
                             </div>
                             <input type="hidden" id="selectedTag">
                         </div>
@@ -241,6 +252,25 @@
                         <div class="mb-3">
                             <label class="form-label">描述</label>
                             <textarea class="form-control" id="formDesc" rows="3"></textarea>
+                        </div>
+
+                        <div class="mb-3" id="imageUploadGroup" style="display:none;">
+                            <label class="form-label">配图（可选）</label>
+                            <input type="file" class="form-control" id="formImage" accept="image/*"
+                                onchange="handleImageFileChange()">
+                            <div class="form-text">支持 jpg/jpeg/png/gif/webp/bmp，建议小于 8MB。</div>
+
+                            <div class="form-check mt-2" id="removeImageWrap" style="display:none;">
+                                <input class="form-check-input" type="checkbox" id="removeImageCheck">
+                                <label class="form-check-label" for="removeImageCheck">删除当前图片</label>
+                            </div>
+
+                            <div class="mt-2" id="imagePreviewGroup" style="display:none;">
+                                <img id="imagePreview" class="image-preview" alt="图片预览">
+                                <div class="small mt-1">
+                                    <a href="#" id="imagePreviewLink" target="_blank">新窗口查看原图</a>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -295,6 +325,7 @@
         let messages = [];
         const editModal = new bootstrap.Modal(document.getElementById('editModal'));
         const gloryModal = new bootstrap.Modal(document.getElementById('gloryModal'));
+        const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
 
         // ============ 1. 初始化 ============
         window.onload = function () {
@@ -359,6 +390,7 @@
                 id: Date.now(),
                 type: 'url',
                 sourceUrl: url,
+                imageUrl: '',
                 title: fetchedTitle,
                 status: '待编辑',
                 desc: 'None',
@@ -431,13 +463,100 @@
             }
         }
 
+        function normalizeTagForBoard(tag) {
+            if (tag === '校级活动' || tag === '院级活动' || tag === '讲座' || tag === '校院级活动与讲座' || tag === '校院级活动') return '校院级活动';
+            if (tag === '技巧趣闻') return '生活技巧';
+            if (tag === '编者的话' || tag === '读者来信') return '学校趣闻';
+            return tag;
+        }
+
+        function setImageUploadGroupVisible(visible) {
+            document.getElementById('imageUploadGroup').style.display = visible ? 'block' : 'none';
+        }
+
+        function hideImagePreview() {
+            const previewGroup = document.getElementById('imagePreviewGroup');
+            const preview = document.getElementById('imagePreview');
+            const previewLink = document.getElementById('imagePreviewLink');
+            previewGroup.style.display = 'none';
+            preview.src = '';
+            previewLink.href = '#';
+        }
+
+        function showImagePreview(url) {
+            const previewGroup = document.getElementById('imagePreviewGroup');
+            const preview = document.getElementById('imagePreview');
+            const previewLink = document.getElementById('imagePreviewLink');
+            preview.src = url;
+            previewLink.href = url;
+            previewGroup.style.display = 'block';
+        }
+
+        function resetImageFields() {
+            document.getElementById('formImage').value = '';
+            document.getElementById('removeImageCheck').checked = false;
+            document.getElementById('removeImageWrap').style.display = 'none';
+            hideImagePreview();
+        }
+
+        function handleImageFileChange() {
+            const fileInput = document.getElementById('formImage');
+            const file = fileInput.files[0];
+            if (!file) {
+                return;
+            }
+
+            if (!file.type.startsWith('image/')) {
+                alert('请选择图片文件');
+                fileInput.value = '';
+                return;
+            }
+
+            if (file.size > MAX_IMAGE_SIZE_BYTES) {
+                alert('图片过大，请控制在 8MB 以内');
+                fileInput.value = '';
+                return;
+            }
+
+            document.getElementById('removeImageCheck').checked = false;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                showImagePreview(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function uploadImageFile(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await fetch('/api/upload_image', {
+                method: 'POST',
+                body: formData
+            });
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = {};
+            }
+
+            if (!response.ok || data.status !== 'success' || !data.url) {
+                throw new Error(data.message || '图片上传失败');
+            }
+
+            return data.url;
+        }
+
         function selectTag(btn) {
             document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             const tagVal = btn.textContent.trim();
             document.getElementById('selectedTag').value = tagVal;
 
-            // --- 修改逻辑：如果是院级活动，显示输入框 ---
+            // 兼容旧数据：仅当历史“院级活动”标签被编辑时才显示学院输入框
             const collegeGroup = document.getElementById('collegeInputGroup');
             if (tagVal === '院级活动') {
                 collegeGroup.style.display = 'block';
@@ -459,6 +578,8 @@
             // 重置学院输入框
             document.getElementById('collegeInputGroup').style.display = 'none';
             document.getElementById('collegeNameInput').value = '';
+            resetImageFields();
+            setImageUploadGroupVisible(false);
 
             const saveBtn = document.getElementById('saveBtn');
             const actionTypeInput = document.getElementById('actionType');
@@ -469,6 +590,7 @@
                 actionTypeInput.value = "submit_draft";
                 saveBtn.textContent = "提交";
                 saveBtn.className = "btn btn-primary";
+                setImageUploadGroupVisible(true);
             } else {
                 const id = mode;
                 const msg = messages.find(m => m.id === id);
@@ -489,13 +611,22 @@
                     document.getElementById('sourceUrlDisplay').textContent = msg.sourceUrl;
                     document.getElementById('sourceUrlDisplay').href = msg.sourceUrl;
                 }
+
+                const isTextMessage = msg.type === 'text';
+                setImageUploadGroupVisible(isTextMessage);
+                if (isTextMessage && msg.imageUrl) {
+                    showImagePreview(msg.imageUrl);
+                    document.getElementById('removeImageWrap').style.display = 'block';
+                }
+
                 if (msg.tag) {
-                    const tagBtn = Array.from(document.querySelectorAll('.tag-btn')).find(b => b.textContent.trim() === msg.tag);
+                    const normalizedTag = normalizeTagForBoard(msg.tag);
+                    const tagBtn = Array.from(document.querySelectorAll('.tag-btn')).find(b => b.textContent.trim() === normalizedTag);
                     if (tagBtn) tagBtn.classList.add('active');
-                    document.getElementById('selectedTag').value = msg.tag;
+                    document.getElementById('selectedTag').value = normalizedTag || '';
 
                     // --- 修改逻辑：回显学院名 ---
-                    if (msg.tag === '院级活动') {
+                    if (normalizedTag === '院级活动') {
                         document.getElementById('collegeInputGroup').style.display = 'block';
                         document.getElementById('collegeNameInput').value = msg.collegeName || '';
                     }
@@ -531,8 +662,10 @@
             const actionType = document.getElementById('actionType').value;
             const title = document.getElementById('formTitle').value;
             const desc = document.getElementById('formDesc').value || "None";
-            const tag = document.getElementById('selectedTag').value;
+            const tag = normalizeTagForBoard(document.getElementById('selectedTag').value);
             const collegeName = document.getElementById('collegeNameInput').value;
+            const imageFile = document.getElementById('formImage').files[0];
+            const shouldRemoveImage = document.getElementById('removeImageCheck').checked;
 
             let deadlineVal = "";
             const isDeadlineChecked = document.getElementById('useDeadlineCheck').checked;
@@ -541,12 +674,22 @@
             }
 
             if (!title || !tag) return alert("请填写标题和标签");
-            if (tag === '院级活动' && !collegeName) return alert("请填写所属学院");
 
             // 截止日期提醒
             if (!isDeadlineChecked) {
                 const confirmNoDeadline = confirm("⚠️ 温馨提示：\n\n您没有设置【截止日期】。\n建议设置日期，以便系统在过期后自动将消息下架。\n\n您确定要继续提交吗？");
                 if (!confirmNoDeadline) return;
+            }
+
+            let uploadedImageUrl = '';
+            if (imageFile) {
+                if (!imageFile.type.startsWith('image/')) return alert("请选择图片文件");
+                if (imageFile.size > MAX_IMAGE_SIZE_BYTES) return alert("图片过大，请控制在 8MB 以内");
+                try {
+                    uploadedImageUrl = await uploadImageFile(imageFile);
+                } catch (e) {
+                    return alert(e.message || "图片上传失败");
+                }
             }
 
             const now = new Date().toLocaleString('zh-CN', { hour12: false });
@@ -556,6 +699,7 @@
                     id: Date.now(),
                     type: 'text',
                     sourceUrl: '',
+                    imageUrl: uploadedImageUrl,
                     title: title,
                     status: '待审核',
                     desc: desc,
@@ -572,11 +716,16 @@
             } else {
                 const msg = messages.find(m => m.id == editId);
                 if (msg) {
+                    let finalImageUrl = msg.imageUrl || '';
+                    if (shouldRemoveImage) finalImageUrl = '';
+                    if (uploadedImageUrl) finalImageUrl = uploadedImageUrl;
+
                     msg.title = title;
                     msg.desc = desc;
                     msg.tag = tag;
                     msg.collegeName = (tag === '院级活动') ? collegeName : ''; // 更新学院
                     msg.deadline = deadlineVal;
+                    msg.imageUrl = finalImageUrl;
 
                     if (actionType === 'submit_draft') {
                         msg.status = '待审核';
@@ -639,8 +788,14 @@
                     displayTitle = `【${msg.collegeName}】 ${msg.title}`;
                 }
 
-                let titleHtml = msg.type === 'url' ? `<a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none">${displayTitle}</a>` : displayTitle;
+                const imageLinkHtml = msg.imageUrl
+                    ? ` <a href="${msg.imageUrl}" target="_blank" class="badge bg-light text-dark text-decoration-none border">图片</a>`
+                    : '';
+                let titleHtml = msg.type === 'url'
+                    ? `<a href="${msg.sourceUrl}" target="_blank" class="text-decoration-none">${displayTitle}</a>${imageLinkHtml}`
+                    : `${displayTitle}${imageLinkHtml}`;
                 let deadlineText = msg.deadline || "<span class='text-muted small'>-</span>";
+                const displayTag = normalizeTagForBoard(msg.tag) || '-';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -648,7 +803,7 @@
                     <td><div class="fw-bold" style="max-width: 280px;">${titleHtml}</div></td>
                     <td><span class="badge ${badgeClass}">${msg.status}</span></td>
                     <td class="small text-muted text-truncate" style="max-width: 150px;">${msg.desc}</td>
-                    <td>${msg.tag || '-'}</td>
+                    <td>${displayTag}</td>
                     <td>${deadlineText}</td>
                     <td><span class="fw-bold text-success">${msg.reviewer}</span></td>
                     <td class="small">${msg.uploadTime.split(' ')[0]}</td>
@@ -676,7 +831,7 @@
             const tagVal = btn.textContent.trim();
             document.getElementById('selectedTag').value = tagVal;
 
-            // 联动显示
+            // 兼容旧数据：仅当历史“院级活动”标签被编辑时才显示学院输入框
             const collegeGroup = document.getElementById('collegeInputGroup');
             if (tagVal === '院级活动') {
                 collegeGroup.style.display = 'block';

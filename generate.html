@@ -339,6 +339,17 @@
             document.getElementById('fetchDate').value = lastDate || todayStr;
         };
 
+        function normalizeTagForBoard(tag) {
+            if (!tag) return '';
+            if (tag === '校级活动' || tag === '院级活动' || tag === '讲座' || tag === '校院级活动与讲座' || tag === '校院级活动') {
+                return '校院级活动';
+            }
+            if (tag === '技巧趣闻' || tag === '生活技巧') return '生活技巧';
+            if (tag === '编者的话' || tag === '读者来信' || tag === '学校趣闻') return '学校趣闻';
+            if (tag === '学生权益' || tag === '宿舍生活' || tag === '社团活动') return tag;
+            return '';
+        }
+
         function formatTitleHtml(msg) {
             let finalTitle = msg.title;
 
@@ -347,10 +358,14 @@
                 finalTitle = `【${msg.collegeName}】${msg.title}`;
             }
 
+            const imageLinkHtml = msg.imageUrl
+                ? ` <a href="${msg.imageUrl}" target="_blank" class="paper-link" data-pdf-link="${msg.imageUrl}">[图]</a>`
+                : '';
+
             if (msg.type === 'url' && msg.sourceUrl) {
-                return `<a href="${msg.sourceUrl}" target="_blank" class="paper-link" data-pdf-link="${msg.sourceUrl}">${finalTitle}</a>`;
+                return `<a href="${msg.sourceUrl}" target="_blank" class="paper-link" data-pdf-link="${msg.sourceUrl}">${finalTitle}</a>${imageLinkHtml}`;
             }
-            return finalTitle;
+            return `${finalTitle}${imageLinkHtml}`;
         }
 
         function createBlock(htmlContent) {
@@ -383,7 +398,8 @@
             filtered.forEach(m => {
                 const li = document.createElement('li');
                 li.className = 'list-group-item';
-                li.textContent = `[${m.tag}] ${m.title}`;
+                const displayTag = normalizeTagForBoard(m.tag) || m.tag || '未分类';
+                li.textContent = `[${displayTag}] ${m.title}`;
                 listContainer.appendChild(li);
             });
 
@@ -393,40 +409,54 @@
         function renderBalancedView(messages, currentPdfDate) {
             const queue = [];
 
-            // 1. 订阅块
-            const subHtml = `
-            <h3 class="section-title">1. 订阅与加入</h3>
-            <p>
-                编辑部工作轻松，用爱发电，更有激励奖励。欢迎加入我们！详情联系 QQ 3628491152 (小风同学) 或 alice_liddell1852@126.com。<br>
-                <span class="text-olive">投稿(来信/趣闻)请发邮箱:</span> alice_liddell1852@126.com<br>
-                <span class="text-olive">免费订阅/获取PDF(含往期):</span> 加 QQ 群 698517032。
-            </p>`;
-            queue.push(createBlock(subHtml));
+            const sectionOrder = [
+                {
+                    key: '学生权益',
+                    title: '1. 学生权益',
+                    placeholder: '欢迎投稿学生权益相关资讯，投稿请至 alice_liddell1852@126.com'
+                },
+                {
+                    key: '宿舍生活',
+                    title: '2. 宿舍生活',
+                    placeholder: '欢迎分享宿舍生活经验与通知，投稿请至 alice_liddell1852@126.com'
+                },
+                {
+                    key: '生活技巧',
+                    title: '3. 生活技巧',
+                    placeholder: '欢迎投稿实用生活技巧，投稿请至 alice_liddell1852@126.com'
+                },
+                {
+                    key: '学校趣闻',
+                    title: '4. 学校趣闻',
+                    placeholder: '欢迎分享校园趣闻与新鲜事，投稿请至 alice_liddell1852@126.com'
+                },
+                {
+                    key: '社团活动',
+                    title: '5. 社团活动',
+                    placeholder: '期待更多社团合作，投稿请至 alice_liddell1852@126.com'
+                },
+                {
+                    key: '校院级活动',
+                    title: '6. 校院级活动',
+                    placeholder: '校级活动、院级活动与讲座信息欢迎投稿，投稿请至 alice_liddell1852@126.com'
+                }
+            ];
 
-            // 准备数据分类
-            let activityList = [];
-            let activityHigh = [];
-            let clubList = [], clubHigh = [];
-            let specialData = { editor: [], letters: [], tips: [] };
+            const sectionMap = {};
+            sectionOrder.forEach(section => {
+                sectionMap[section.key] = { list: [], high: [] };
+            });
 
             messages.forEach(msg => {
-                if (msg.tag === '编者的话') { specialData.editor.push(msg); return; }
-                if (msg.tag === '读者来信') { specialData.letters.push(msg); return; }
-                if (msg.tag === '技巧趣闻') { specialData.tips.push(msg); return; }
+                const normalizedTag = normalizeTagForBoard(msg.tag);
+                if (!normalizedTag) return;
 
                 const isNew = (msg.publishDate === currentPdfDate);
                 const isSticky = (msg.keepUntilDeadline === true);
                 const showHighlight = (msg.type === 'url' && (isNew || isSticky));
 
-                // 合并校级、院级、讲座
-                if (msg.tag === '校级活动' || msg.tag === '院级活动' || msg.tag === '讲座') {
-                    activityList.push(msg);
-                    if (showHighlight) activityHigh.push(msg);
-                }
-                else if (msg.tag === '社团活动') {
-                    clubList.push(msg);
-                    if (showHighlight) clubHigh.push(msg);
-                }
+                sectionMap[normalizedTag].list.push(msg);
+                if (showHighlight) sectionMap[normalizedTag].high.push(msg);
             });
 
             // 辅助生成表格函数
@@ -494,66 +524,25 @@
                 return blocks;
             };
 
-            // --- 开始构建队列 ---
+            sectionOrder.forEach(section => {
+                const secData = sectionMap[section.key];
+                let sectionHtml = '';
+                const placeholderHtml = `<div class="empty-placeholder text-olive">${section.placeholder}</div>`;
 
-            // 1. 技巧趣闻 (第2位)
-            let tipsHtml = `<h3 class="section-title">2. 技巧趣闻</h3>`;
-            if (specialData.tips.length > 0) {
-                specialData.tips.forEach(msg => {
-                    tipsHtml += `<div class="special-item">
-                    <div class="special-item-title">${formatTitleHtml(msg)}</div>
-                    <div class="special-section-content">${msg.desc}</div>
-                </div>`;
-                });
-            }
-            tipsHtml += `<div class="empty-placeholder text-olive">分享生活技巧或校园趣闻，请投递至 alice_liddell1852@126.com</div>`;
-            queue.push(createBlock(tipsHtml));
-
-            // 2. 活动清单 (序号 3)
-            if (activityList.length > 0) queue.push(createBlock(generateTableHtml("3. 活动清单", activityList)));
-            if (activityHigh.length > 0) queue.push(...createHighlightBlocks(activityHigh, 1));
-
-            // 3. 社团活动 (序号 4) - 核心修改部分
-            let clubHtml = '';
-            const clubPlaceholder = `<div class="empty-placeholder text-olive">期待更多社团合作，投稿请至 alice_liddell1852@126.com</div>`;
-
-            if (clubList.length > 0) {
-                clubHtml = generateTableHtml("4. 社团活动", clubList);
-            } else {
-                clubHtml = `<h3 class="section-title">4. 社团活动</h3>`;
-            }
-
-            // 如果没有高亮内容插在中间，我们将占位符与标题/表格合并在同一个块中
-            // 这样可以避免标题在左栏底部、占位符在右栏顶部的分离情况
-            if (clubHigh.length === 0) {
-                clubHtml += clubPlaceholder;
-                queue.push(createBlock(clubHtml));
-            } else {
-                // 如果有高亮内容，则必须拆分
-                queue.push(createBlock(clubHtml));
-                queue.push(...createHighlightBlocks(clubHigh, 1));
-                // 占位符单独放最后
-                queue.push(createBlock(clubPlaceholder));
-            }
-
-            // 4. 其他专栏 (序号 5, 6)
-            const remainingSections = [
-                { title: "5. 编者的话", data: specialData.editor, placeholder: "期待听到您的声音，投稿请至 alice_liddell1852@126.com" },
-                { title: "6. 读者来信", data: specialData.letters, placeholder: "虚位以待，您的观点值得被看见，来信请寄 alice_liddell1852@126.com" }
-            ];
-
-            remainingSections.forEach(sec => {
-                let html = `<h3 class="section-title">${sec.title}</h3>`;
-                if (sec.data.length > 0) {
-                    sec.data.forEach(msg => {
-                        html += `<div class="special-item">
-                        <div class="special-item-title">${formatTitleHtml(msg)}</div>
-                        <div class="special-section-content">${msg.desc}</div>
-                    </div>`;
-                    });
+                if (secData.list.length > 0) {
+                    sectionHtml = generateTableHtml(section.title, secData.list);
+                } else {
+                    sectionHtml = `<h3 class="section-title">${section.title}</h3>`;
                 }
-                html += `<div class="empty-placeholder text-olive">${sec.placeholder}</div>`;
-                queue.push(createBlock(html));
+
+                if (secData.high.length === 0) {
+                    sectionHtml += placeholderHtml;
+                    queue.push(createBlock(sectionHtml));
+                } else {
+                    queue.push(createBlock(sectionHtml));
+                    queue.push(...createHighlightBlocks(secData.high, 1));
+                    queue.push(createBlock(placeholderHtml));
+                }
             });
 
             // 调用算法

@@ -14,7 +14,12 @@ app = Flask(__name__, static_folder=BASE_DIR)
 CORS(app) 
 
 DATA_FILE = os.path.join(BASE_DIR, 'data.json')
+UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
 BACKUP_KEEP_COUNT = int(os.environ.get('BACKUP_KEEP_COUNT', '30'))
+MAX_IMAGE_SIZE_BYTES = int(os.environ.get('MAX_IMAGE_SIZE_MB', '8')) * 1024 * 1024
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 引入线程锁：防止多个管理员同时点击保存时互相踩踏数据
 data_lock = threading.Lock()
@@ -136,6 +141,37 @@ def api_save_messages():
         return jsonify({"status": "error", "message": f"保存失败: {err}"}), 500
 
     return jsonify({"status": "success", "count": len(new_data)})
+
+@app.route('/api/upload_image', methods=['POST'])
+def api_upload_image():
+    image_file = request.files.get('image')
+    if not image_file or not image_file.filename:
+        return jsonify({"status": "error", "message": "未接收到图片文件"}), 400
+
+    _, ext = os.path.splitext(image_file.filename)
+    ext = ext.lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return jsonify({"status": "error", "message": "仅支持 jpg/jpeg/png/gif/webp/bmp 图片"}), 400
+
+    try:
+        image_file.stream.seek(0, os.SEEK_END)
+        size = image_file.stream.tell()
+        image_file.stream.seek(0)
+    except Exception:
+        size = 0
+
+    if size > MAX_IMAGE_SIZE_BYTES:
+        return jsonify({"status": "error", "message": f"图片过大，最大 {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB"}), 413
+
+    filename = f"upload_{int(time.time() * 1000)}_{os.urandom(4).hex()}{ext}"
+    save_path = os.path.join(UPLOAD_DIR, filename)
+
+    try:
+        image_file.save(save_path)
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"图片保存失败: {e}"}), 500
+
+    return jsonify({"status": "success", "url": f"/uploads/{filename}"})
 
 # --- 5. 获取标题接口 ---
 
