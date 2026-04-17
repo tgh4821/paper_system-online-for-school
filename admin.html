@@ -126,7 +126,7 @@
                             <select class="form-select" id="editTag">
                                 <option value="学生权益">学生权益</option>
                                 <option value="宿舍生活">宿舍生活</option>
-                                <option value="生活技巧">生活技巧</option>
+                                <option value="技巧杂文">技巧杂文</option>
                                 <option value="学校趣闻">学校趣闻</option>
                                 <option value="社团活动">社团活动</option>
                                 <option value="校院级活动">校院级活动</option>
@@ -199,7 +199,7 @@
 
         function normalizeTagForBoard(tag) {
             if (tag === '校级活动' || tag === '院级活动' || tag === '讲座' || tag === '校院级活动与讲座' || tag === '校院级活动') return '校院级活动';
-            if (tag === '技巧趣闻') return '生活技巧';
+            if (tag === '技巧趣闻' || tag === '生活技巧' || tag === '技巧杂文') return '技巧杂文';
             if (tag === '编者的话' || tag === '读者来信') return '学校趣闻';
             return tag;
         }

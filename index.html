@@ -161,7 +161,6 @@
                     <button class="btn btn-outline-primary me-1">预览</button>
                     <button class="btn btn-primary me-1" onclick="openEditModal('text')">上传纯文本消息</button>
                     <button class="btn btn-success" onclick="openGloryModal()">🏆 光荣榜</button>
-                    <a href="special.html" class="btn btn-outline-dark ms-1">专栏投稿</a>
                 </div>
             </div>
 
@@ -239,7 +238,7 @@
                             <div id="tagsContainer">
                                 <button type="button" class="btn tag-btn" onclick="selectTag(this)">学生权益</button>
                                 <button type="button" class="btn tag-btn" onclick="selectTag(this)">宿舍生活</button>
-                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">生活技巧</button>
+                                <button type="button" class="btn tag-btn" onclick="selectTag(this)">技巧杂文</button>
                                 <button type="button" class="btn tag-btn" onclick="selectTag(this)">学校趣闻</button>
                                 <button type="button" class="btn tag-btn" onclick="selectTag(this)">社团活动</button>
                                 <button type="button" class="btn tag-btn" onclick="selectTag(this)">校院级活动</button>
@@ -487,7 +486,7 @@
 
         function normalizeTagForBoard(tag) {
             if (tag === '校级活动' || tag === '院级活动' || tag === '讲座' || tag === '校院级活动与讲座' || tag === '校院级活动') return '校院级活动';
-            if (tag === '技巧趣闻') return '生活技巧';
+            if (tag === '技巧趣闻' || tag === '生活技巧' || tag === '技巧杂文') return '技巧杂文';
             if (tag === '编者的话' || tag === '读者来信') return '学校趣闻';
             return tag;
         }
